@@ -1,0 +1,13 @@
+name := "Pony"
+
+version := "1.0"
+
+scalaVersion := "2.10.0"
+
+scalacOptions ++= Seq( "-deprecation", "-unchecked", "-feature" )
+
+resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
+
+libraryDependencies += "com.github.scopt" %% "scopt" % "2.1.0"
+
+resolvers += "sonatype-public" at "https://oss.sonatype.org/content/groups/public"
