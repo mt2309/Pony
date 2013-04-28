@@ -48,6 +48,6 @@ object Main extends App {
     }
 
     println("here")
-    unit.buildUnit
+    unit.buildUnit()
   }
 }

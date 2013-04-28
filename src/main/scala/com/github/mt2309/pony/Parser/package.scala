@@ -1,7 +1,7 @@
 package com.github.mt2309.pony
 
-import collection.mutable.ArrayBuffer
-import Error.CompilerError
+import scala.collection.mutable.ArrayBuffer
+import com.github.mt2309.pony.Error.CompilerError
 
 /**
  * User: mthorpe

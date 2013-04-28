@@ -2,7 +2,7 @@ package com.github.mt2309.pony.CompilationUnit
 
 import java.io.File
 import com.github.mt2309.pony.Parser.PonyParser
-import util.parsing.combinator.Parsers
+import scala.util.parsing.combinator.Parsers
 
 /**
  * User: mthorpe
