@@ -2,7 +2,6 @@ package com.github.mt2309.pony.CompilationUnit
 
 import java.io.File
 import com.github.mt2309.pony.Parser.PonyParser
-import scala.util.parsing.combinator.Parsers
 
 /**
  * User: mthorpe
@@ -19,7 +18,7 @@ class CompilationUnit(val absolutePath: String, stage: Int) {
 
 
   def buildUnit() {
-    for (file <- loadDir) PonyParser.parse(file._2)
+    for (file <- loadDir) PonyParser.parse(file)
   }
 
   private def loadDir: Seq[(Filename, FileContents)] = {
