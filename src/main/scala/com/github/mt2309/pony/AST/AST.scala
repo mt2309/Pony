@@ -8,19 +8,20 @@ package com.github.mt2309.pony.AST
 
 sealed abstract class AST
 
-final case class Module(members:List[ClassMembers]) extends AST
+final case class Module(members:List[ModuleMember]) extends AST
 
-abstract class ClassMembers extends AST
+abstract class ModuleMember extends AST
+final case class Use(toType: Option[TypeId], importName: String) extends ModuleMember
+final case class Declare(typeClass: TypeClass, is: Option[Is], declareMap: Option[DeclareMap]) extends ModuleMember
+final case class Type(name: TypeId, ofType: OfType, is: Option[Is]) extends ModuleMember
 
-final case class Use(toType: Option[TypeId], importName: String) extends ClassMembers
-final case class Declare(typeClass: TypeClass, is: Option[Is], declareMap: DeclareMap) extends ClassMembers
-final case class Type(name: TypeId, ofType: OfType, is: Option[Is]) extends ClassMembers
+abstract class Class(name: TypeId, formalArgs: FormalArgs, is:Option[Is], typeBody: TypeBody) extends ModuleMember
+final case class Actor(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody) extends Class(n,f,i,t)
+final case class Trait(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody) extends Class(n,f,i,t)
+final case class Object(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody) extends Class(n,f,i,t)
 
-final case class Actor(name: TypeId, formalArgs: FormalArgs, is:Option[Is], typeBody: TypeBody) extends ClassMembers
-final case class Trait(name: TypeId, formalArgs: FormalArgs, is:Option[Is], typeBody: TypeBody) extends ClassMembers
-final case class Object(name: TypeId, formalArgs: FormalArgs, is:Option[Is], typeBody: TypeBody) extends ClassMembers
-
-final case class CombinedArgs(formalArgs: FormalArgs, Args: Args)
+final case class CombinedArgs(formalArgs: FormalArgs, args: Args)
+final case class Arg(expr: Option[Expr], ofType: Option[OfType], assign: Option[Expr]) extends AST
 
 abstract class TypeElement extends AST
 final case class PartialType(name: TypeClass) extends TypeElement
@@ -38,9 +39,8 @@ final case class Is(list: List[TypeClass]) extends AST
 final case class DeclareMap(map: List[PonyMap]) extends AST
 final case class PonyMap(from:ID, to: ID) extends AST
 
-final case class OfType(typeList: Option[List[TypeElement]]) extends AST
+final case class OfType(typeList: List[TypeElement]) extends AST
 
-final case class Arg(expr: Expr, ofType: OfType, assign: Option[Expr]) extends AST
 
 final case class TypeBody(body: List[BodyContent]) extends AST
 abstract class BodyContent(name: ID) extends AST
@@ -53,7 +53,7 @@ final case class Ambient(contents: MethodContent, throws: Boolean, block: Option
 final case class Function(contents: MethodContent, results: Option[Args], throws: Boolean, block: Option[Block]) extends BodyContent(contents.id)
 final case class Message(contents: MethodContent, block: Option[Block]) extends BodyContent(contents.id)
 
-final case class Expr(unary: Unary, operator: Option[(Operator, Unary)]) extends AST
+final case class Expr(unary: Unary, operator: List[(Operator, Unary)]) extends AST
 
 trait BlockContent extends AST
 
@@ -62,7 +62,7 @@ object Throw extends BlockContent
 object Break extends BlockContent
 object Continue extends BlockContent
 
-final case class VarDec(id: ID, ofType: OfType) extends AST
+final case class VarDec(id: ID, ofType: Option[OfType]) extends AST
 final case class Match(list: List[Expr], cases: List[CaseBlock]) extends BlockContent
 final case class DoLoop(block: Block, whileExpr: Expr) extends BlockContent
 final case class WhileLoop(whileExpr: Expr, block: Block) extends BlockContent
@@ -70,9 +70,13 @@ final case class ForLoop(forVars: List[ForVar], inExpr: Expr, block: Block) exte
 final case class Conditional(conditionalList: List[(Expr, Block)], elseBlock: Option[Block]) extends BlockContent
 final case class Assignment(lValues: List[LValue], expr: Option[Expr]) extends BlockContent
 
-final case class CaseBlock(c: Option[Any], block: Block) extends AST
+final case class CaseBlock(c: Option[CaseSubBlock], block: Block) extends AST
+abstract class CaseSubBlock extends AST
+final case class CaseIf(expr: Expr) extends CaseSubBlock
+final case class CaseVarList(varList: List[CaseVar]) extends CaseSubBlock
+
 final case class CaseVar(expr: Option[Expr], forVar: ForVar) extends AST
-final case class ForVar(id: ID, ofType: OfType) extends AST
+final case class ForVar(id: ID, ofType: Option[OfType]) extends AST
 
 
 abstract class LValue extends AST
@@ -103,7 +107,7 @@ abstract class Unary(unaryOps: List[UnaryOp]) extends AST
 final case class UnaryCommand(un: List[UnaryOp], command: Command) extends Unary(un)
 final case class UnaryLambda(un: List[UnaryOp], lambda: Lambda) extends Unary(un)
 
-final case class Command(first: FirstCommand, second: SecondCommand) extends AST
+final case class Command(first: FirstCommand, second: Option[SecondCommand]) extends AST
 abstract class FirstCommand extends AST
 final case class CommandExpr(expr: Expr) extends FirstCommand
 final case class CommandArgs(args: List[Arg]) extends FirstCommand
@@ -117,6 +121,7 @@ object This extends Atom
 object True extends Atom
 object False extends Atom
 final case class PonyInt(i: Int) extends Atom
+final case class PonyDouble(d: Double) extends Atom
 final case class PonyString(s: String) extends Atom
 final case class PonyID(i: ID) extends Atom
 final case class PonyTypeId(t: TypeId) extends Atom
