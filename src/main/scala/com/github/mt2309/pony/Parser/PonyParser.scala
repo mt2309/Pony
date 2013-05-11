@@ -4,18 +4,22 @@ import scala.util.parsing.combinator.RegexParsers
 import language.postfixOps
 
 import com.github.mt2309.pony.AST._
+import com.github.mt2309.pony.Common._
+
 
 object PonyParser extends RegexParsers {
 
-  def parse(file: (String, String)) {
+  def parse(file: (String, String)): Option[Module] = {
     parseAll(module, file._2) match {
-      case Success(_, _) => println("success")
-      case e: NoSuccess => println("failure in " + file._1 + "\t" + e.msg + "\t" + e.next.pos)
+      case Success(module, _) => { println("success"); Some(module) }
+      case e: NoSuccess => {println("failure in " + file._1 + "\t" + e.msg + "\t" + e.next.pos); None }
     }
   }
 
   // Module - top level of everything
-  private def module: Parser[Module] = ((use | declare | typeParser | traitParser | objectParser | actor)*) ^^ {s => new Module(s)}
+  private def module: Parser[Module] = ((use*) ~ (namedMembers*)) ^^ {s => new Module(s._1.toSet, s._2.map(x => x.name -> x).toMap)}
+
+  private def namedMembers: Parser[ModuleMember] = declare | traitParser | objectParser | actor | typeParser
 
   private def use: Parser[Use] = "use" ~> ((typeId <~ "=")?) ~ string ^^ {s => new Use(s._1, s._2)}
 
@@ -42,28 +46,28 @@ object PonyParser extends RegexParsers {
 
   // Body Contents start here
 
-  private def typeBody: Parser[TypeBody] = "{" ~> ((field | delegate | constructor | ambient | function | message)*) <~ "}" ^^ {s => new TypeBody(s)}
+  private def typeBody: Parser[TypeBody] = "{" ~> ((field | delegate | constructor | ambient | function | message)*) <~ "}" ^^ {s => new TypeBody(s.map(f => f.name -> f).toMap)}
 
-  private def message: Parser[Message] = "message" ~> methodContent ~ OptBlock ^^ {
+  private def message: Parser[BodyContent] = "message" ~> methodContent ~ OptBlock ^^ {
     s => new Message(contents = s._1, block = s._2)
   }
 
-  private def function: Parser[Function] = "function" ~> methodContent ~ results ~ throws ~ OptBlock ^^ {
+  private def function: Parser[BodyContent] = "function" ~> methodContent ~ results ~ throws ~ OptBlock ^^ {
     s => new Function(contents = s._1._1._1, results = s._1._1._2, throws = s._1._2, block = s._2)
   }
 
-  private def field: Parser[Field] = "var" ~> id ~ ofType ~ fieldExpr ^^ {s => new Field(id = s._1._1, ofType = s._1._2, expr = s._2)}
+  private def field: Parser[BodyContent] = "var" ~> id ~ ofType ~ fieldExpr ^^ {s => new Field(id = s._1._1, ofType = s._1._2, expr = s._2)}
   private def fieldExpr: Parser[Option[Expr]] = fieldSome | fieldNone
   private def fieldSome: Parser[Option[Expr]] = "=" ~> expr ^^ {Some(_)}
   private def fieldNone: Parser[Option[Expr]] = ";" ^^ {s => None}
 
-  private def delegate: Parser[Delegate] = "delegate" ~> id ~ ofType ^^ {s => new Delegate(s._1, s._2)}
+  private def delegate: Parser[BodyContent] = "delegate" ~> id ~ ofType ^^ {s => new Delegate(s._1, s._2)}
 
-  private def constructor: Parser[Constructor] = "new" ~> methodContent ~ throws ~ OptBlock ^^ {
+  private def constructor: Parser[BodyContent] = "new" ~> methodContent ~ throws ~ OptBlock ^^ {
     s => new Constructor(contents = s._1._1, throws = s._1._2, block = s._2)
   }
 
-  private def ambient: Parser[Ambient] = "ambient" ~> methodContent ~ throws ~ OptBlock ^^ {
+  private def ambient: Parser[BodyContent] = "ambient" ~> methodContent ~ throws ~ OptBlock ^^ {
     s => new Ambient(contents = s._1._1, throws = s._1._2, block = s._2)
   }
 
@@ -123,6 +127,10 @@ object PonyParser extends RegexParsers {
 
   private def matchParser: Parser[BlockContent] = ("match" ~> parserList(expr, ",")) ~ ("{" ~> (caseBlock+) <~ "}") ^^ {s => new Match(s._1, s._2)}
 
+  private def doLoop: Parser[BlockContent] = ("do" ~> block) ~ ("while" ~> expr) ^^ {s => new DoLoop(s._1, s._2)}
+  private def whileLoop: Parser[BlockContent] = "while" ~> expr ~ block ^^ {s => new WhileLoop(s._1, s._2)}
+  private def forLoop: Parser[BlockContent] = ("for" ~> parserList(forVar, ",")) ~ ("in" ~> expr ~ block) ^^ {s => new ForLoop(s._1, s._2._1, s._2._2)}
+
   private def caseBlock: Parser[CaseBlock] = "case" ~> (caseSubBlock?) ~ block ^^ {s => new CaseBlock(s._1, s._2)}
 
   private def caseSubBlock: Parser[CaseSubBlock] = caseIf | caseVarList
@@ -130,10 +138,6 @@ object PonyParser extends RegexParsers {
   private def caseVarList: Parser[CaseSubBlock] = parserList(casevar, ",") ^^ {new CaseVarList(_)}
 
   private def casevar: Parser[CaseVar] = (expr?) ~ ("as" ~ forVar) ^^ {s => new CaseVar(s._1, s._2._2)}
-
-  private def doLoop: Parser[BlockContent] = ("do" ~> block) ~ ("while" ~> expr) ^^ {s => new DoLoop(s._1, s._2)}
-  private def whileLoop: Parser[BlockContent] = "while" ~> expr ~ block ^^ {s => new WhileLoop(s._1, s._2)}
-  private def forLoop: Parser[BlockContent] = ("for" ~> parserList(forVar, ",")) ~ ("in" ~> expr ~ block) ^^ {s => new ForLoop(s._1, s._2._1, s._2._2)}
 
   private def forVar: Parser[ForVar] = id ~ (ofType?) ^^ {s => new ForVar(s._1, s._2)}
 

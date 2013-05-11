@@ -46,8 +46,6 @@ object Main extends App {
     } catch {
       case e: IOException => {println("Starting directory " + input + " not found"); sys.exit(1)}
     }
-
     println("here")
-    unit.buildUnit()
   }
 }

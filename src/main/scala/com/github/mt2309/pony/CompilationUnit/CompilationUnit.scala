@@ -2,6 +2,10 @@ package com.github.mt2309.pony.CompilationUnit
 
 import java.io.File
 import com.github.mt2309.pony.Parser.PonyParser
+import com.github.mt2309.pony.AST.Module
+import com.github.mt2309.pony.Typer.TopTypes
+
+import com.github.mt2309.pony.Common._
 
 /**
  * User: mthorpe
@@ -10,16 +14,9 @@ import com.github.mt2309.pony.Parser.PonyParser
  */
 class CompilationUnit(val absolutePath: String, stage: Int) {
 
-  type Filename = String
-  type FileContents = String
-
   val fileList = loadDir
-//  val astList: Seq[AST] = for (file <- fileList) yield file
-
-
-  def buildUnit() {
-    for (file <- loadDir) PonyParser.parse(file)
-  }
+  val astList: Seq[(Filename, Option[Module])] = for (file <- fileList) yield file._1 -> PonyParser.parse(file)
+  val typedAs = new TopTypes(astList.toSet)
 
   private def loadDir: Seq[(Filename, FileContents)] = {
     for (file <- getFilesInDirectory(new File(absolutePath))) yield (file.getAbsolutePath -> io.Source.fromFile(file).mkString)
@@ -32,5 +29,4 @@ class CompilationUnit(val absolutePath: String, stage: Int) {
 
     for (f <- file.listFiles()) yield f
   }
-
 }

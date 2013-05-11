@@ -1,5 +1,7 @@
 package com.github.mt2309.pony.AST
 
+import com.github.mt2309.pony.Common._
+
 /**
  * User: mthorpe
  * Date: 26/04/2013
@@ -8,17 +10,19 @@ package com.github.mt2309.pony.AST
 
 sealed abstract class AST
 
-final case class Module(members:List[ModuleMember]) extends AST
+final case class Module(imports:Set[Use], classes: Map[TypeId, ModuleMember]) extends AST
 
-abstract class ModuleMember extends AST
-final case class Use(toType: Option[TypeId], importName: String) extends ModuleMember
-final case class Declare(typeClass: TypeClass, is: Option[Is], declareMap: Option[DeclareMap]) extends ModuleMember
-final case class Type(name: TypeId, ofType: OfType, is: Option[Is]) extends ModuleMember
+final case class Use(toType: Option[TypeId], importName: String) extends AST
 
-abstract class Class(name: TypeId, formalArgs: FormalArgs, is:Option[Is], typeBody: TypeBody) extends ModuleMember
-final case class Actor(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody) extends Class(n,f,i,t)
-final case class Trait(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody) extends Class(n,f,i,t)
-final case class Object(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody) extends Class(n,f,i,t)
+abstract class ModuleMember(val name: TypeId) extends AST
+
+final case class Declare(typeClass: TypeClass, is: Option[Is], declareMap: Option[DeclareMap]) extends ModuleMember(typeClass.name)
+final case class Type(n: TypeId, ofType: OfType, is: Option[Is]) extends ModuleMember(n)
+
+abstract class PonyParserClass(val na: TypeId, val formalArgs: FormalArgs, val is:Option[Is], val typeBody: TypeBody) extends ModuleMember(na)
+final case class Actor(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody)   extends PonyParserClass(n,f,i,t)
+final case class Trait(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody)   extends PonyParserClass(n,f,i,t)
+final case class Object(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody)  extends PonyParserClass(n,f,i,t)
 
 final case class CombinedArgs(formalArgs: FormalArgs, args: Args)
 final case class Arg(expr: Option[Expr], ofType: Option[OfType], assign: Option[Expr]) extends AST
@@ -42,16 +46,17 @@ final case class PonyMap(from:ID, to: ID) extends AST
 final case class OfType(typeList: List[TypeElement]) extends AST
 
 
-final case class TypeBody(body: List[BodyContent]) extends AST
-abstract class BodyContent(name: ID) extends AST
-final case class Field(id: ID, ofType: OfType, expr: Option[Expr]) extends BodyContent(id)
+final case class TypeBody(body: Map[ID,BodyContent]) extends AST
+
+abstract class BodyContent(val name: ID, val isAbstract: Boolean = false) extends AST
+final case class Field(id: ID, ofType: OfType, expr: Option[Expr]) extends BodyContent(id, expr.isEmpty)
 final case class Delegate(id: ID, ofType: OfType) extends BodyContent(id)
+final case class Constructor(contents: MethodContent, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty)
+final case class Ambient(contents: MethodContent, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty)
+final case class Function(contents: MethodContent, results: Option[Args], throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty)
+final case class Message(contents: MethodContent, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty)
 
 final case class MethodContent(mode: Option[Mode], id:ID, combinedArgs: CombinedArgs) extends AST
-final case class Constructor(contents: MethodContent, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id)
-final case class Ambient(contents: MethodContent, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id)
-final case class Function(contents: MethodContent, results: Option[Args], throws: Boolean, block: Option[Block]) extends BodyContent(contents.id)
-final case class Message(contents: MethodContent, block: Option[Block]) extends BodyContent(contents.id)
 
 final case class Expr(unary: Unary, operator: List[(Operator, Unary)]) extends AST
 
