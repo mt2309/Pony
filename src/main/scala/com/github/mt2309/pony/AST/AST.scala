@@ -16,13 +16,13 @@ final case class Use(toType: Option[TypeId], importName: String) extends AST
 
 abstract class ModuleMember(val name: TypeId) extends AST
 
-final case class Declare(typeClass: TypeClass, is: Option[Is], declareMap: Option[DeclareMap]) extends ModuleMember(typeClass.name)
+final case class Declare(typeClass: TypeClass, is: Is, declareMap: Option[DeclareMap]) extends ModuleMember(typeClass.name)
 final case class Type(n: TypeId, ofType: OfType, is: Option[Is]) extends ModuleMember(n)
 
-abstract class PonyParserClass(val na: TypeId, val formalArgs: FormalArgs, val is:Option[Is], val typeBody: TypeBody) extends ModuleMember(na)
-final case class Actor(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody)   extends PonyParserClass(n,f,i,t)
-final case class Trait(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody)   extends PonyParserClass(n,f,i,t)
-final case class Object(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody)  extends PonyParserClass(n,f,i,t)
+abstract class PonyParserClass(val na: TypeId, val formalArgs: FormalArgs, val is:Is, val typeBody: TypeBody) extends ModuleMember(na)
+final case class Actor(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody)   extends PonyParserClass(n,f,i.getOrElse(new Is(List.empty)),t)
+final case class Trait(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody)   extends PonyParserClass(n,f,i.getOrElse(new Is(List.empty)),t)
+final case class Object(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody)  extends PonyParserClass(n,f,i.getOrElse(new Is(List.empty)),t)
 
 final case class CombinedArgs(formalArgs: FormalArgs, args: Args)
 final case class Arg(expr: Option[Expr], ofType: Option[OfType], assign: Option[Expr]) extends AST

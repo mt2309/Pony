@@ -11,7 +11,7 @@ object PonyParser extends RegexParsers {
 
   def parse(file: (String, String)): Option[Module] = {
     parseAll(module, file._2) match {
-      case Success(module, _) => { println("success"); Some(module) }
+      case Success(module, _) => { println(s"Parsing file: ${file._1} was a success"); Some(module) }
       case e: NoSuccess => {println("failure in " + file._1 + "\t" + e.msg + "\t" + e.next.pos); None }
     }
   }
@@ -23,7 +23,7 @@ object PonyParser extends RegexParsers {
 
   private def use: Parser[Use] = "use" ~> ((typeId <~ "=")?) ~ string ^^ {s => new Use(s._1, s._2)}
 
-  private def declare: Parser[Declare] = "declare" ~> typeclass ~ is ~ (declaremap?) ^^ {s => new Declare(s._1._1, s._1._2, s._2)}
+  private def declare: Parser[Declare] = "declare" ~> typeclass ~ is ~ (declaremap?) ^^ {s => new Declare(s._1._1, s._1._2.getOrElse(new Is(List.empty)), s._2)}
 
   private def declaremap: Parser[DeclareMap] = "{" ~> parserList(map, ",") <~ "}" ^^ {new DeclareMap(_)}
 
@@ -101,7 +101,7 @@ object PonyParser extends RegexParsers {
 
   private def throws: Parser[Boolean] = ("throws"?) ^^ {_.isDefined}
 
-  private def formalArgs: Parser[Option[List[Arg]]] = (("[" ~> parserList(arg, ",") <~ "]")?)
+  private def formalArgs: Parser[Option[List[TypeId]]] = (("[" ~> parserList(typeId, ",") <~ "]")?)
 
   private def block: Parser[Block] = "{" ~> blockList ~ (catchBlock?) ~ (always?) <~ "}" ^^ {s => new Block(s._1._1, s._1._2, s._2)}
 
