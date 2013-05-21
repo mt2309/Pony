@@ -1,6 +1,7 @@
 package com.github.mt2309.pony
 
 import com.github.mt2309.pony.Common._
+import com.github.mt2309.pony.AST.{Primitive, ModuleMember}
 
 /**
  * User: mthorpe
@@ -9,6 +10,6 @@ import com.github.mt2309.pony.Common._
  */
 package object Typer {
 
-  val primitiveTypes: Set[TypeId] = Set("Int", "UInt", "Char")
+  val primitiveTypes: Set[ModuleMember] = Set(new Primitive("Int"), new Primitive("UInt"), new Primitive("Char"))
 
 }

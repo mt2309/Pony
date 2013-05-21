@@ -18,6 +18,8 @@ final class CompilationUnit(val absolutePath: String, stage: Int) {
   val astList: Seq[(Filename, Option[Module])] = for (file <- fileList) yield file._1 -> PonyParser.parse(file)
   val typedAs: Set[TypedModule] = new TopTypes(astList.toSet).topLevelTypes
 
+  val typeScope: TypeScope = typedAs.map(_.types).flatten.toMap
+
   private def loadDir: Seq[(Filename, FileContents)] = {
     for (file <- getFilesInDirectory(new File(absolutePath))) yield (file.getAbsolutePath -> io.Source.fromFile(file).mkString)
   }

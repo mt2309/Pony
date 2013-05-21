@@ -16,6 +16,7 @@ final case class Use(toType: Option[TypeId], importName: String) extends AST
 
 abstract class ModuleMember(val name: TypeId) extends AST
 
+final case class Primitive(typename: TypeId) extends ModuleMember(typename)
 final case class Declare(typeClass: TypeClass, is: Is, declareMap: Option[DeclareMap]) extends ModuleMember(typeClass.name)
 final case class Type(n: TypeId, ofType: OfType, is: Option[Is]) extends ModuleMember(n)
 

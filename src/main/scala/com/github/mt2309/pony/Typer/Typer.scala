@@ -20,8 +20,7 @@ final case class TypedModuleMember(name: TypeId, content: TypedBodyContent)
 abstract class TypedBodyContent
 final case class TypedDeclare(typeClass: TypeClass, is: Is, declareMap: Option[DeclareMap]) extends TypedBodyContent
 
-final class TypeScope(inScope: Set[TypeId])
-final class valueScope(inScope: Map[ID, TypeId])
+abstract class Type
 
 abstract class TypedClass extends TypedBodyContent
 final case class TypedActor()  extends TypedClass

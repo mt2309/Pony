@@ -2,6 +2,7 @@ package com.github.mt2309.pony.CompilationUnit
 
 import com.github.mt2309.pony.Common._
 import com.github.mt2309.pony.AST.ModuleMember
+import com.github.mt2309.pony.Typer.ModuleNotFoundException
 
 /**
  * User: mthorpe
@@ -14,5 +15,7 @@ class UnqualifiedCompilationUnits(val units: Set[CompilationUnit]) extends AnyVa
 }
 
 class QualifiedCompilationUnits(val units: Map[TypeId, CompilationUnit]) extends AnyVal {
-  def lookUpType(name: TypeId, qualifier: TypeId): Option[ModuleMember] = units.get(qualifier).map(t => t.searchType(name)).flatten
+  def lookUpType(name: TypeId, qualifier: TypeId, filename: Filename): Option[ModuleMember] = {
+    units.getOrElse(qualifier, throw new ModuleNotFoundException(s"Module name $qualifier not found in $filename")).searchType(name)
+  }
 }
