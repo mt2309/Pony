@@ -2,7 +2,7 @@ package com.github.mt2309.pony
 
 import com.github.mt2309.pony.AST.{ModuleMember, Arg}
 import com.github.mt2309.pony.CompilationUnit.{UnqualifiedCompilationUnits, QualifiedCompilationUnits}
-import com.github.mt2309.pony.Typer.Type
+import com.github.mt2309.pony.Typer.TArg
 
 /**
  * User: mthorpe
@@ -29,10 +29,9 @@ package object Common {
 
   // and args are
   type Args = List[Arg]
+  type TArgs = List[TArg]
 
   type CompilationUnits = (QualifiedCompilationUnits, UnqualifiedCompilationUnits)
 
   type TypeScope = Map[TypeId, ModuleMember]
-  type ValueScope = Map[ID, Type]
-
 }

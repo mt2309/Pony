@@ -35,10 +35,12 @@ class TopTypeModule(val filename: Filename, moduleScope: TypeScope, module: Modu
       case t: Trait => checkTraitsTrait(t)
       case o: Object => checkTraitsFinal(o)
       case d: Declare => checkTraitsDeclare(d)
+      case p: Primitive => throw new RuntimeException("This should never happen")
+      case t: Type => ???
     }
   }
 
-  def typeCheck: TypedModule = new TypedModule(typedImports -> imports, module.classes)
+  def typeCheck: PreTypedModule = new PreTypedModule(typedImports -> imports, module.classes)
 
   def checkTraitsFinal(pc: PonyParserClass) {
     val traitList = pc.is.list.map(typeClass => typeClass -> findTrait(typeClass.name))
