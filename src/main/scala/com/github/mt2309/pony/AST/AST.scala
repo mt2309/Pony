@@ -12,26 +12,32 @@ final case class Module(imports:Set[Use], classes: Map[TypeId, ModuleMember])
 
 final case class Use(toType: Option[TypeId], importName: String)
 
-sealed abstract class ModuleMember(val name: TypeId)
+sealed abstract class ModuleMember(val typeName: TypeId)
 
-final case class Primitive(typename: TypeId) extends ModuleMember(typename)
-final case class Declare(typeClass: TypeClass, is: Is, declareMap: Option[DeclareMap]) extends ModuleMember(typeClass.name)
-final case class Type(n: TypeId, ofType: OfType, is: Option[Is]) extends ModuleMember(n)
+final case class Primitive(name: TypeId) extends ModuleMember(name)
+final case class Declare(typeClass: TypeClass, is: Is, declareMap: DeclareMap) extends ModuleMember(typeClass.name)
+final case class Type(n: TypeId, ofType: OfType, is: Is) extends ModuleMember(n)
 
-sealed abstract class PonyParserClass(val na: TypeId, val formalArgs: FormalArgs, val is:Is, val typeBody: TypeBody) extends ModuleMember(na)
-final case class Actor(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody)   extends PonyParserClass(n,f,i.getOrElse(new Is(List.empty)),t)
-final case class Trait(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody)   extends PonyParserClass(n,f,i.getOrElse(new Is(List.empty)),t)
-final case class Object(n: TypeId, f: FormalArgs, i:Option[Is], t: TypeBody)  extends PonyParserClass(n,f,i.getOrElse(new Is(List.empty)),t)
+sealed abstract class
+PonyParserClass(val name: TypeId, val formalArgs: FormalArgs, val is:Is, val typeBody: TypeBody)
+  extends ModuleMember(name)
+
+final case class Actor(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)   extends PonyParserClass(n,f,i,t)
+final case class Trait(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)   extends PonyParserClass(n,f,i,t)
+final case class Object(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)  extends PonyParserClass(n,f,i,t)
 
 final case class CombinedArgs(formalArgs: FormalArgs, args: Args)
 final case class Arg(expr: Option[Expr], ofType: Option[OfType], assign: Option[Expr])
 
 sealed abstract class TypeElement
-final case class PartialType(name: TypeClass) extends TypeElement
-final case class TypeClass(name: TypeId, module:Option[TypeId] = None, mode: Option[Mode] = None, formalArgs: FormalArgs = None) extends TypeElement
+final case class PartialType(typeClass: TypeClass) extends TypeElement
+final case class TypeClass(name: TypeId, module:Option[TypeId] = None, mode: Mode = ReadOnly, formalArgs: FormalArgs = List.empty) extends TypeElement {
+  override def toString: String = if (module.isDefined) name ++ module.get else name
+}
 final case class Lambda(mode: Mode, args: List[Arg], result: Option[List[Arg]], throws: Boolean, block: Option[Block]) extends TypeElement
 
 sealed abstract class Mode
+object ReadOnly     extends Mode
 object Immutable    extends Mode
 object Mutable      extends Mode
 object Unique       extends Mode
@@ -42,12 +48,12 @@ final case class Is(list: List[TypeClass])
 final case class DeclareMap(map: List[PonyMap])
 final case class PonyMap(from:ID, to: ID)
 
-final case class OfType(typeList: List[TypeElement])
+final case class OfType(typeList: Set[TypeElement])
 
 
 final case class TypeBody(body: Map[ID,BodyContent])
 
-sealed abstract class BodyContent(val name: ID, val isAbstract: Boolean = false, val returnType: OfType = new OfType(List(new TypeClass("Void"))))
+sealed abstract class BodyContent(val name: ID, val isAbstract: Boolean = false, val returnType: OfType = new OfType(Set(new TypeClass("Void"))))
 final case class Field(id: ID, ofType: OfType, expr: Option[Expr]) extends BodyContent(id, expr.isEmpty, ofType)
 final case class Delegate(id: ID, ofType: OfType) extends BodyContent(name = id, returnType = ofType)
 final case class Constructor(contents: MethodContent, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty)
@@ -55,7 +61,7 @@ final case class Ambient(contents: MethodContent, throws: Boolean, block: Option
 final case class Function(contents: MethodContent, results: Option[Args], throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty)
 final case class Message(contents: MethodContent, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty)
 
-final case class MethodContent(mode: Option[Mode], id:ID, combinedArgs: CombinedArgs)
+final case class MethodContent(mode: Mode, id:ID, combinedArgs: CombinedArgs)
 
 final case class Expr(unary: Unary, operator: List[(Operator, Unary)])
 
@@ -66,7 +72,7 @@ object Throw extends BlockContent
 object Break extends BlockContent
 object Continue extends BlockContent
 
-final case class VarDec(id: ID, ofType: Option[OfType]) extends BlockContent
+final case class VarDec(id: ID, ofType: Option[OfType], assign: Option[Expr]) extends BlockContent
 final case class Match(list: List[Expr], cases: List[CaseBlock]) extends BlockContent
 final case class DoLoop(block: Block, whileExpr: Expr) extends BlockContent
 final case class WhileLoop(whileExpr: Expr, block: Block) extends BlockContent

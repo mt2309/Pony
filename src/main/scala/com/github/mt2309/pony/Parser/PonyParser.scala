@@ -17,29 +17,33 @@ object PonyParser extends RegexParsers {
   }
 
   // Module - top level of everything
-  private def module: Parser[Module] = ((use*) ~ (namedMembers*)) ^^ {s => new Module(s._1.toSet, s._2.map(x => x.name -> x).toMap)}
+  private def module: Parser[Module] = ((use*) ~ (namedMembers*)) ^^ {s => new Module(s._1.toSet, s._2.map(x => x.typeName -> x).toMap)}
 
   private def namedMembers: Parser[ModuleMember] = declare | traitParser | objectParser | actor | typeParser
 
   private def use: Parser[Use] = "use" ~> ((typeId <~ "=")?) ~ string ^^ {s => new Use(s._1, s._2)}
 
-  private def declare: Parser[Declare] = "declare" ~> typeclass ~ is ~ (declaremap?) ^^ {s => new Declare(s._1._1, s._1._2.getOrElse(new Is(List.empty)), s._2)}
+  private def declare: Parser[Declare] = "declare" ~> typeclass ~ is ~ (declaremap?) ^^ {
+    s => new Declare(s._1._1, s._1._2.getOrElse(new Is(List.empty)), s._2.getOrElse(new DeclareMap(List.empty)))
+  }
 
   private def declaremap: Parser[DeclareMap] = "{" ~> parserList(map, ",") <~ "}" ^^ {new DeclareMap(_)}
 
   private def map: Parser[PonyMap] = id ~ "=" <~ id ^^ {s => new PonyMap(s._2, s._1)}
 
-  private def typeParser: Parser[Type] = ("type" ~> typeId) ~ (ofType ~ is) ^^ {s => new Type(s._1, s._2._1, s._2._2)}
+  private def typeParser: Parser[Type] = ("type" ~> typeId) ~ (ofType ~ is) ^^ {
+    s => new Type(s._1, s._2._1, s._2._2.getOrElse(new Is(List.empty)))
+  }
 
   private def actor: Parser[Actor] = ("actor" ~> typeId) ~ formalArgs ~ is ~ typeBody ^^ {
-    s => new Actor(n = s._1._1._1, f = s._1._1._2, i = s._1._2, t = s._2)
+    s => new Actor(n = s._1._1._1, f = s._1._1._2.getOrElse(List.empty), i = s._1._2.getOrElse(new Is(List.empty)), t = s._2)
   }
 
   private def traitParser: Parser[Trait] = ("trait" ~> typeId) ~ formalArgs ~ is ~ typeBody ^^ {
-    s => new Trait(n = s._1._1._1, f = s._1._1._2, i = s._1._2, t = s._2)
+    s => new Trait(n = s._1._1._1, f = s._1._1._2.getOrElse(List.empty), i = s._1._2.getOrElse(new Is(List.empty)), t = s._2)
   }
   private def objectParser: Parser[Object] = "object" ~> typeId ~ formalArgs ~ is ~ typeBody ^^ {
-    s => new Object(n = s._1._1._1, f = s._1._1._2, i = s._1._2, t = s._2)
+    s => new Object(n = s._1._1._1, f = s._1._1._2.getOrElse(List.empty), i = s._1._2.getOrElse(new Is(List.empty)), t = s._2)
   }
 
   private def is: Parser[Option[Is]] = ("is" ~> parserList(typeclass, ",")).? ^^ {s => s.map(new Is(_))}
@@ -72,23 +76,23 @@ object PonyParser extends RegexParsers {
   }
 
   private def modeId: Parser[(Option[Mode], ID)] = (mode?) ~ id ^^ {s => s._1 -> s._2}
-  private def combinedArgs: Parser[CombinedArgs] = formalArgs ~ args ^^ {s => new CombinedArgs(s._1,s._2)}
+  private def combinedArgs: Parser[CombinedArgs] = formalArgs ~ args ^^ {s => new CombinedArgs(s._1.getOrElse(List.empty),s._2)}
   private def results: Parser[Option[Args]] = (("->" ~> args)?)
 
-  private def methodContent: Parser[MethodContent] = modeId ~ combinedArgs ^^ {s => new MethodContent(s._1._1, s._1._2, s._2)}
+  private def methodContent: Parser[MethodContent] = modeId ~ combinedArgs ^^ {s => new MethodContent(s._1._1.getOrElse(ReadOnly), s._1._2, s._2)}
 
   private def OptBlock: Parser[Option[Block]] = (NoneBlock | SomeBlock) ^^ {s => s}
   private def SomeBlock: Parser[Option[Block]] = block ^^ {s => Some(s)}
   private def NoneBlock: Parser[Option[Block]] = ";" ^^ {s => None}
 
-  private def ofType: Parser[OfType] = (":" ~> parserList(typeElement, "|")) ^^ {new OfType(_)}
+  private def ofType: Parser[OfType] = (":" ~> parserList(typeElement, "|")) ^^ {s => new OfType(s.toSet)}
 
   private def typeElement: Parser[TypeElement] = (partialType | typeclass | lambda) ^^ {case s: TypeElement => s}
 
   private def partialType: Parser[PartialType] = "\\" ~> typeclass ^^ {new PartialType(_)}
 
   private def typeclass: Parser[TypeClass] = typeId ~ optModule ~ ((mode?) ~ formalArgs) ^^ {
-    s => new TypeClass(name = s._1._1, module = s._1._2, mode = s._2._1, formalArgs = s._2._2)
+    s => new TypeClass(name = s._1._1, module = s._1._2, mode = s._2._1.getOrElse(ReadOnly), formalArgs = s._2._2.getOrElse(List.empty))
   }
 
   private def optModule: Parser[Option[TypeId]] = (("::" ~> typeId)?)
@@ -101,7 +105,7 @@ object PonyParser extends RegexParsers {
 
   private def throws: Parser[Boolean] = ("throws"?) ^^ {_.isDefined}
 
-  private def formalArgs: Parser[Option[List[TypeId]]] = (("[" ~> parserList(typeId, ",") <~ "]")?)
+  private def formalArgs: Parser[Option[List[TypeClass]]] = (("[" ~> parserList(typeclass, ",") <~ "]")?)
 
   private def block: Parser[Block] = "{" ~> blockList ~ (catchBlock?) ~ (always?) <~ "}" ^^ {s => new Block(s._1._1, s._1._2, s._2)}
 
@@ -119,7 +123,7 @@ object PonyParser extends RegexParsers {
   private def lValueVar: Parser[LValue] = varDec ^^ {new LValueVar(_)}
   private def lValueCommand: Parser[LValue] = command ^^ {new LValueCommand(_)}
 
-  private def varDec: Parser[VarDec] = "var" ~> id ~ (ofType?) ^^ {s => new VarDec(s._1, s._2)}
+  private def varDec: Parser[VarDec] = "var" ~> id ~ (ofType?) ~ (("=" ~> expr)?) ^^ {s => new VarDec(s._1._1, s._1._2, s._2)}
 
   private def catchBlock: Parser[Block] = "catch" ~> block
 
@@ -191,7 +195,10 @@ object PonyParser extends RegexParsers {
 
   private def secondCommand: Parser[SecondCommand] = secondCommandArgs | commandCall
   private def secondCommandArgs: Parser[SecondCommand] = args ^^ {new SecondCommandArgs(_)}
-  private def commandCall: Parser[SecondCommand] = "." ~> id ~ formalArgs ~ args ^^ {s => new CommandCall(s._1._1, s._1._2, s._2)}
+
+  private def commandCall: Parser[SecondCommand] = "." ~> id ~ formalArgs ~ args ^^ {
+    s => new CommandCall(s._1._1, s._1._2.getOrElse(List.empty), s._2)
+  }
 
   // Atoms
   private def atom: Parser[Atom] = thisParse | trueParse | falseParse | intParse | floatParse | stringParse | idParse | typeIdParse
