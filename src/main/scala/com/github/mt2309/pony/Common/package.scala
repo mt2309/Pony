@@ -1,8 +1,8 @@
 package com.github.mt2309.pony
 
-import com.github.mt2309.pony.AST.{ModuleMember, Arg}
+import com.github.mt2309.pony.AST.{TypeClass, ModuleMember, Arg}
 import com.github.mt2309.pony.CompilationUnit.{UnqualifiedCompilationUnits, QualifiedCompilationUnits}
-import com.github.mt2309.pony.Typer.TArg
+import com.github.mt2309.pony.Typer.{ITypeClass, TTypeClass, TArg}
 
 /**
  * User: mthorpe
@@ -24,14 +24,20 @@ package object Common {
 
   // Formal arguments are (optional) lists of typeIds.
   // Later we could extend this to expressions for value-dependent types
-  // But that's a bit beyond the current scope of things.
-  type FormalArgs = Option[List[TypeId]]
+  // But that's a bit beyond the current typeScope of things.
+  type FormalArgs = List[TypeClass]
 
   // and args are
   type Args = List[Arg]
-  type TArgs = List[TArg]
 
   type CompilationUnits = (QualifiedCompilationUnits, UnqualifiedCompilationUnits)
+
+  implicit class ImplicitCompilationOps(val c: CompilationUnits) {
+    def searchType(t: TypeClass): Option[ModuleMember] = t.module match {
+      case Some(module) => c._1.lookUpType(t.name, module)
+      case None => c._2.lookUpType(t.name)
+    }
+  }
 
   type TypeScope = Map[TypeId, ModuleMember]
 }

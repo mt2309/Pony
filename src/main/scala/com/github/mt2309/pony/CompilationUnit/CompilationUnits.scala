@@ -15,7 +15,7 @@ class UnqualifiedCompilationUnits(val units: Set[CompilationUnit]) extends AnyVa
 }
 
 class QualifiedCompilationUnits(val units: Map[TypeId, CompilationUnit]) extends AnyVal {
-  def lookUpType(name: TypeId, qualifier: TypeId, filename: Filename): Option[ModuleMember] = {
-    units.getOrElse(qualifier, throw new ModuleNotFoundException(s"Module name $qualifier not found in $filename")).searchType(name)
+  def lookUpType(name: TypeId, qualifier: TypeId): Option[ModuleMember] = {
+    units.getOrElse(qualifier, throw new ModuleNotFoundException(s"Module typeClass $qualifier not found")).searchType(name)
   }
 }
