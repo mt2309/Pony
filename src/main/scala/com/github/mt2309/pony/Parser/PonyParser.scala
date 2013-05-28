@@ -54,7 +54,9 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
 
   // Body Contents start here
 
-  private def typeBody: Parser[TypeBody] = "{" ~> ((field | delegate | constructor | ambient | function | message)*) <~ "}" ^^ {s => new TypeBody(s.map(f => f.name -> f).toMap)}
+  private def typeBody: Parser[TypeBody] = "{" ~> ((field | delegate | constructor | ambient | function | message)*) <~ "}" ^^ {
+    s => new TypeBody(s.map(f => f.name -> f).toMap)
+  }
 
   private def message: Parser[BodyContent] = "message" ~> methodContent ~ OptBlock ^^ {
     s => new Message(contents = s._1, block = s._2)
@@ -86,7 +88,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   private def methodContent: Parser[MethodContent] = modeId ~ combinedArgs ^^ {s => new MethodContent(s._1._1.getOrElse(ReadOnly), s._1._2, s._2)}
 
   private def OptBlock: Parser[Option[Block]] = (NoneBlock | SomeBlock) ^^ {s => s}
-  private def SomeBlock: Parser[Option[Block]] = block ^^ {s => Some(s)}
+  private def SomeBlock: Parser[Option[Block]] = block ^^ {Some(_)}
   private def NoneBlock: Parser[Option[Block]] = ";" ^^ {s => None}
 
   private def ofType: Parser[OfType] = (":" ~> parserList(typeElement, "|")) ^^ {s => new OfType(s.toSet)}
@@ -217,7 +219,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
 
 
   // Modes
-  private def mode: Parser[Mode] = immutable | mutable | unique | modeExpr ^^ {s => s}
+  private def mode: Parser[Mode] = immutable | mutable | unique | modeExpr
   private def immutable: Parser[Mode] = "!" ^^ {s => Immutable}
   private def mutable: Parser[Mode] = "~" ^^ {s => Mutable}
   private def unique: Parser[Mode] = "@" ^^ {s => Unique}
