@@ -1,6 +1,6 @@
 package com.github.mt2309.pony
 
-import com.github.mt2309.pony.AST.{TypeClass, ModuleMember, Arg}
+import com.github.mt2309.pony.AST.{TypeClass, Param, Arg}
 import com.github.mt2309.pony.CompilationUnit.{UnqualifiedCompilationUnits, QualifiedCompilationUnits}
 import com.github.mt2309.pony.Typer.IModuleMember
 
@@ -29,6 +29,7 @@ package object Common {
 
   // and args are
   type Args = List[Arg]
+  type Params = List[Param]
 
   type CompilationUnits = (QualifiedCompilationUnits, UnqualifiedCompilationUnits)
 

@@ -14,15 +14,19 @@ package object Typer {
   type TFormalArgs = List[TTypeClass]
 
   type TArgs = List[TArg]
+  type TParams = List[TParam]
 
   val void: Primitive = new Primitive("Void")
 
   val bool: TPrimitive = new TPrimitive("Boolean")(new Scope)
   val pInt: TPrimitive = new TPrimitive("Int")(new Scope)
+  val pDouble: TPrimitive = new TPrimitive("Double")(new Scope)
   val pUInt: TPrimitive = new TPrimitive("UInt")(new Scope)
   val pChar: TPrimitive = new TPrimitive("Char")(new Scope)
 
   val boolOfType = new TOfType(Set(bool))(new Scope)
+  val intOfType = new TOfType(Set(pInt))(new Scope)
+  val doubleOfType = new TOfType(Set(pDouble))(new Scope)
 
   val primitiveTypes: Set[ModuleMember] = Set(new Primitive("Int"), new Primitive("UInt"), new Primitive("Char"))
   val primMap: Map[TypeId, ModuleMember] = primitiveTypes.map(t => t.typeName -> t).toMap

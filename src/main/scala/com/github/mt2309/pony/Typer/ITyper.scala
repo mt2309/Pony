@@ -29,7 +29,7 @@ final case class IPartialType(name: ITypeClass)
 final case class ITypeClass(iType: IModuleMember, mode: Mode = ReadOnly, formalArgs: FormalArgs = List.empty)
   extends ITypeElement
 
-final case class ILambda(mode: Mode, args: List[Arg], result: Option[List[Arg]], throws: Boolean, block: Option[Block])
+final case class ILambda(mode: Mode, args: Args, result: Option[Params], throws: Boolean, block: Option[Block])
   extends ITypeElement
 
 final case class IIs(list: List[ITypeClass]) extends NotNull

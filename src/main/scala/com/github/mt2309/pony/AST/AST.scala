@@ -29,7 +29,9 @@ final case class Trait
 final case class Object
 (n: TypeId, f: FormalArgs, i:Is, t: TypeBody)(implicit override val filename: Filename)  extends PonyParserClass(n,f,i,t) with NotNull
 
-final case class CombinedArgs(formalArgs: FormalArgs, args: Args) extends NotNull
+final case class Param(name: ID, ofType: OfType) extends NotNull
+
+final case class CombinedArgs(formalArgs: FormalArgs, args: Params) extends NotNull
 final case class Arg(expr: Option[Expr], ofType: Option[OfType], assign: Option[Expr]) extends NotNull
 
 sealed abstract class TypeElement(implicit val fileName: Filename) extends NotNull
@@ -42,7 +44,7 @@ final case class TypeClass(name: TypeId,
   override def toString: String = if (module.isDefined) name ++ module.get else name
 }
 
-final case class Lambda(mode: Mode, args: List[Arg], result: Option[List[Arg]], throws: Boolean, block: Option[Block])(implicit override val fileName: Filename) extends TypeElement with NotNull
+final case class Lambda(mode: Mode, args: Args, result: Option[Params], throws: Boolean, block: Option[Block])(implicit override val fileName: Filename) extends TypeElement with NotNull
 
 sealed abstract class Mode extends NotNull
 object ReadOnly     extends Mode with NotNull
@@ -65,7 +67,7 @@ final case class Field(id: ID, ofType: OfType, expr: Option[Expr]) extends BodyC
 final case class Delegate(id: ID, ofType: OfType) extends BodyContent(name = id, returnType = ofType) with NotNull
 final case class Constructor(contents: MethodContent, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with NotNull
 final case class Ambient(contents: MethodContent, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with NotNull
-final case class Function(contents: MethodContent, results: Option[Args], throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with NotNull
+final case class Function(contents: MethodContent, results: Option[Params], throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with NotNull
 final case class Message(contents: MethodContent, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with NotNull
 
 final case class MethodContent(mode: Mode, id:ID, combinedArgs: CombinedArgs) extends NotNull

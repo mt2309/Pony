@@ -29,8 +29,10 @@ final case class Scope(typeScope: TypeScope = Map.empty,
   def search(t: TypeClass): IModuleMember = {
     val i = imports.searchType(t)
 
-    i.getOrElse(typeScope.getOrElse(t.name, throw new TypeClassNotFoundException(t.toString)))
+    i.getOrElse(typeScope.getOrElse(t.name, throw new TypeClassNotFoundException(s"$t not found in ${t.fileName}")))
   }
+
+  def search(t: TTypeClass): IModuleMember = t.moduleMember
 
   def search(m: ModuleMember): IModuleMember = search(m.typeName)
 
@@ -42,21 +44,26 @@ final case class Scope(typeScope: TypeScope = Map.empty,
     true
   }
 
-  def findMethod(id: ID, of: OfType): BodyContent = {
+  def findMethod(id: ID, of: TOfType): BodyContent = {
     for (t <- of.typeList) {
       t match {
-        case p: PartialType => search(p.typeClass)
-        case t: TypeClass => search(t)
-        case l: Lambda => throw new LambdaInMethCallException(s"Lambda found in method lookup for for id $id")
+        case p: TPartialType => search(p.name)
+        case t: TTypeClass => search(t)
+        case l: TLambda => throw new LambdaInMethCallException(s"Lambda found in method lookup for for id $id")
+        case TPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")
       }
     }
 
     ???
   }
 
+  def findMethod(id: ID, is: IIs): BodyContent = {
+    ???
+  }
+
   def search(t: TypeId): IModuleMember = typeScope.getOrElse(t, throw new TypeNotFoundException(t))
 
-  def searchID(i: ID): TOfType = varScope.getOrElse(i, throw new VariableNotFoundException(i))
+  def searchID(i: ID): TOfType = varScope.getOrElse(i, throw new VariableNotFoundException(s"$i not found in $filename"))
 }
 
 final case class PreTypedModule(imports: CompilationUnits, classes: Map[TypeId, ModuleMember])(implicit val scope: Map[TypeId, ModuleMember], val filename: Filename) extends NotNull
@@ -74,13 +81,15 @@ final case class TActor(n: TypeId, f: TFormalArgs, i:TIs, t: TTypeBody)(implicit
 final case class TTrait(n: TypeId, f: TFormalArgs, i:TIs, t: TTypeBody)(implicit override val scope: Scope)   extends PonyClass(n,f,i,t)
 final case class TObject(n: TypeId, f: TFormalArgs, i:TIs, t: TTypeBody)(implicit override val scope: Scope)  extends PonyClass(n,f,i,t)
 
-final case class TCombinedArgs(formalArgs: TFormalArgs, args: TArgs)(implicit val scope: Scope) extends NotNull
+final case class TParam(name: ID, ofType: TOfType)
+
+final case class TCombinedArgs(formalArgs: TFormalArgs, args: TParams)(implicit val scope: Scope) extends NotNull
 final case class TArg(expr: Option[TExpr], ofType: Option[TOfType], assign: Option[TExpr])(implicit val scope: Scope) extends NotNull
 
 sealed trait TTypeElement extends NotNull
 final case class TPartialType(name: TTypeClass)(implicit val scope: Scope) extends TTypeElement
 final case class TTypeClass(moduleMember: IModuleMember, mode: TMode = TReadOnly, formalArgs: TFormalArgs = List.empty)(implicit val scope: Scope) extends TTypeElement
-final case class TLambda(mode: TMode, args: List[TArg], result: Option[List[TArg]], throws: Boolean, block: Option[TBlock])(implicit val scope: Scope) extends TTypeElement
+final case class TLambda(mode: TMode, args: TArgs, result: Option[TParams], throws: Boolean, block: Option[TBlock])(implicit val scope: Scope) extends TTypeElement
 
 sealed abstract class TMode extends NotNull
 object TReadOnly    extends TMode
@@ -104,7 +113,7 @@ final case class TField(id: ID, ofType: TOfType, expr: Option[TExpr])(implicit o
 final case class TDelegate(id: ID, ofType: TOfType)(implicit override val scope: Scope) extends TBodyContent(name = id)
 final case class TConstructor(contents: TMethodContent, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty)
 final case class TAmbient(contents: TMethodContent, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty)
-final case class TFunction(contents: TMethodContent, results: Option[TArgs], throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty)
+final case class TFunction(contents: TMethodContent, results: Option[TParams], throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty)
 final case class TMessage(contents: TMethodContent, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty)
 
 final case class TMethodContent(mode: TMode, id:ID, combinedArgs: TCombinedArgs)(implicit val scope: Scope) extends NotNull
@@ -148,21 +157,41 @@ final case class TUnaryLambda(un: List[UnaryOp], lambda: TLambda)(implicit overr
 final case class TCommand(first: TFirstCommand, second: Option[TSecondCommand])(implicit val scope: Scope) extends NotNull
 
 sealed abstract class TFirstCommand extends NotNull {
-  def extractOfType(implicit scope: Scope): TOfType = ???
+  def extractOfType(implicit scope: Scope): TOfType
 }
 
-final case class TCommandExpr(expr: TExpr)(implicit val scope: Scope) extends TFirstCommand with NotNull
-final case class TCommandArgs(args: List[TArg])(implicit val scope: Scope) extends TFirstCommand with NotNull
+final case class TCommandExpr(expr: TExpr)(implicit val scope: Scope) extends TFirstCommand with NotNull {
+  def extractOfType(implicit scope: Scope): TOfType = ???
+}
+final case class TCommandArgs(args: List[TArg])(implicit val scope: Scope) extends TFirstCommand with NotNull {
+  def extractOfType(implicit scope: Scope): TOfType = ???
+}
 sealed abstract class TAtom extends TFirstCommand with NotNull
 
-object TThis extends TAtom
-object TTrue extends TAtom
-object TFalse extends TAtom
-final case class TPonyInt(i: Int) extends TAtom with NotNull
-final case class TPonyDouble(d: Double) extends TAtom with NotNull
-final case class TPonyString(s: String) extends TAtom with NotNull
-final case class TPonyID(i: ID) extends TAtom with NotNull
-final case class TPonyTypeId(t: TypeId) extends TAtom with NotNull
+object TThis extends TAtom{
+  def extractOfType(implicit scope: Scope) = ???
+}
+object TTrue extends TAtom{
+  def extractOfType(implicit scope: Scope) = boolOfType
+}
+object TFalse extends TAtom {
+  def extractOfType(implicit scope: Scope) = boolOfType
+}
+final case class TPonyInt(i: Int) extends TAtom with NotNull{
+  def extractOfType(implicit scope: Scope) = intOfType
+}
+final case class TPonyDouble(d: Double) extends TAtom with NotNull{
+  def extractOfType(implicit scope: Scope) = doubleOfType
+}
+final case class TPonyString(s: String) extends TAtom with NotNull{
+  def extractOfType(implicit scope: Scope) = ???
+}
+final case class TPonyID(i: ID) extends TAtom with NotNull{
+  def extractOfType(implicit scope: Scope) = scope.searchID(i)
+}
+final case class TPonyTypeId(t: TypeId) extends TAtom with NotNull {
+  def extractOfType(implicit scope: Scope) = ???
+}
 
 
 sealed abstract class TSecondCommand extends NotNull

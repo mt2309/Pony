@@ -82,8 +82,12 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   }
 
   private def modeId: Parser[(Option[Mode], ID)] = (mode?) ~ id ^^ {s => s._1 -> s._2}
-  private def combinedArgs: Parser[CombinedArgs] = formalArgs ~ args ^^ {s => new CombinedArgs(s._1.getOrElse(List.empty),s._2)}
-  private def results: Parser[Option[Args]] = (("->" ~> args)?)
+  private def combinedArgs: Parser[CombinedArgs] = formalArgs ~ params ^^ {s => new CombinedArgs(s._1.getOrElse(List.empty),s._2)}
+  private def results: Parser[Option[Params]] = (("->" ~> params)?)
+
+  private def params: Parser[Params] = parserList(param, ",")
+
+  private def param: Parser[Param] = id ~ ofType ^^ {s => new Param(s._1, s._2)}
 
   private def methodContent: Parser[MethodContent] = modeId ~ combinedArgs ^^ {s => new MethodContent(s._1._1.getOrElse(ReadOnly), s._1._2, s._2)}
 
@@ -147,7 +151,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   private def caseIf: Parser[CaseSubBlock] = "if" ~> expr ^^ {new CaseIf(_)}
   private def caseVarList: Parser[CaseSubBlock] = parserList(casevar, ",") ^^ {new CaseVarList(_)}
 
-  private def casevar: Parser[CaseVar] = (expr?) ~ ("as" ~ forVar) ^^ {s => new CaseVar(s._1, s._2._2)}
+  private def casevar: Parser[CaseVar] = (expr?) ~ ("as" ~> forVar) ^^ {s => new CaseVar(s._1, s._2)}
 
   private def forVar: Parser[ForVar] = id ~ (ofType?) ^^ {s => new ForVar(s._1, s._2)}
 
