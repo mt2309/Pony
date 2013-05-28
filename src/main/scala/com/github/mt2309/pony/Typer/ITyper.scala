@@ -8,9 +8,9 @@ import com.github.mt2309.pony.AST._
  * Date: 25/05/2013
  * Time: 12:52
  */
-final case class ITypedModule(imports: CompilationUnits, types: Map[TypeId, IModuleMember])(implicit val scope: Scope)
+final case class ITypedModule(imports: CompilationUnits, types: Map[TypeId, IModuleMember])(implicit val scope: Scope) extends NotNull
 
-sealed abstract class IModuleMember(val name: TypeId)
+sealed abstract class IModuleMember(val name: TypeId) extends NotNull
 
 final case class IPrimitive(typename: TypeId) extends IModuleMember(typename)
 final case class IDeclare(typeClass: ITypeClass, is: IIs, declareMap: DeclareMap) extends IModuleMember(typeClass.iType.name)
@@ -21,7 +21,7 @@ final case class IActor(n: TypeId, f: IFormalArgs, i:IIs, t: TypeBody)   extends
 final case class ITrait(n: TypeId, f: IFormalArgs, i:IIs, t: TypeBody)   extends IPonyClass(n,f,i,t)
 final case class IObject(n: TypeId, f: IFormalArgs, i:IIs, t: TypeBody)  extends IPonyClass(n,f,i,t)
 
-sealed trait ITypeElement
+sealed trait ITypeElement extends NotNull
 
 final case class IPartialType(name: ITypeClass)
   extends ITypeElement
@@ -32,5 +32,5 @@ final case class ITypeClass(iType: IModuleMember, mode: Mode = ReadOnly, formalA
 final case class ILambda(mode: Mode, args: List[Arg], result: Option[List[Arg]], throws: Boolean, block: Option[Block])
   extends ITypeElement
 
-final case class IIs(list: List[ITypeClass])
-final case class IOfType(typeSet: Set[ITypeElement])
+final case class IIs(list: List[ITypeClass]) extends NotNull
+final case class IOfType(typeSet: Set[ITypeElement]) extends NotNull

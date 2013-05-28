@@ -4,7 +4,8 @@ version := "1.0"
 
 scalaVersion := "2.10.0"
 
-scalacOptions ++= Seq( "-deprecation", "-unchecked", "-feature" , "-Xlint", "-Ywarn-all")
+scalacOptions ++= Seq( "-deprecation", "-unchecked", "-feature" , "-Xlint", "-Ywarn-all", "-Xverify", "-Ywarn-dead-code" ,
+  "-Ywarn-all")
 
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 
