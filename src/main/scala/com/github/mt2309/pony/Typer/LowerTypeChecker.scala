@@ -9,39 +9,57 @@ import scala.annotation.tailrec
  * Date: 11/05/2013
  * Time: 16:30
  */
-final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
+final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
 
-  def typeCheck: Set[TypedModule] = {topTypes.map(checkModule(_))}
+  def typeCheck: Set[TypedModule] = {topTypes.map(checkModule)}
 
-  private def checkModule(module: PreTypedModule): TypedModule = {
+  private def checkModule(module: ITypedModule): TypedModule = {
     implicit val scope: Scope = module.scope
-    new TypedModule(module.imports, module.classes.map(c => c._1 -> checkClass(c._2)))
+    new TypedModule(module.imports, module.types.map(c => c._1 -> checkClass(c._2)))
   }
 
-  private def checkClass(moduleMember: ModuleMember)(implicit scope: Scope): TModuleMember = moduleMember match {
-    case Primitive(name) => throw new PrimitiveFound(s"Primitive $name found where it should not be")
-    case Declare(t, is, map) => new TDeclare(checkTypeClass(t), checkIs(is), checkDeclareMap(map, is))
-    case Type(name, of, is) => new TType(name, checkOf(of), checkIs(is))
-    case Actor(name, formal, is, typeBody) => new TActor(name, checkFormal(formal), checkIs(is), checkTypeBody(typeBody))
-    case Object(name, formal, is, typeBody) => new TObject(name, checkFormal(formal), checkIs(is), checkTypeBody(typeBody))
-    case Trait(name, formal, is, typeBody) => new TTrait(name, checkFormal(formal), checkIs(is), checkTypeBody(typeBody))
+  private def checkClass(moduleMember: IModuleMember)(implicit scope: Scope): TModuleMember = moduleMember match {
+    case IPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found where it should not be")
+    case IDeclare(t, is, map) => new TDeclare(checkTypeClass(t), checkIs(is), checkDeclareMap(map, is))
+    case IType(name, of, is) => new TType(name, checkOf(of), checkIs(is))
+    case IActor(name, formal, is, typeBody) => new TActor(  name, checkIFormal(formal), checkIs(is), checkTypeBody(typeBody))
+    case IObject(name, formal, is, typeBody) => new TObject(name, checkIFormal(formal), checkIs(is), checkTypeBody(typeBody))
+    case ITrait(name, formal, is, typeBody) => new TTrait(  name, checkIFormal(formal), checkIs(is), checkTypeBody(typeBody))
   }
+
+  private def checkTypeClass(typeclass: ITypeClass)(implicit scope: Scope): TTypeClass = {
+    new TTypeClass(typeclass.iType, checkMode(typeclass.mode), checkFormal(typeclass.formalArgs))
+  }
+
+  private def checkIFormal(formal: IFormalArgs)(implicit scope: Scope): TFormalArgs = {
+    formal.map(checkTypeClass)
+  }
+
+  private def checkIs(is: IIs)(implicit scope: Scope): TIs = new TIs(is.list.map(checkTypeClass))
+
+  private def checkOf(of: IOfType)(implicit scope: Scope): TOfType = new TOfType(of.typeSet.map(checkTypeElement))
 
   private def checkTypeClass(typeclass: TypeClass)(implicit scope: Scope): TTypeClass = {
     val t = scope.search(typeclass)
 
-    new TTypeClass(typeclass.name, typeclass.module, checkMode(typeclass.mode), checkFormal(typeclass.formalArgs))
+    new TTypeClass(t, checkMode(typeclass.mode), checkFormal(typeclass.formalArgs))
   }
 
-  private def checkIs(is: Is)(implicit scope: Scope): TIs = new TIs(is.list.map(checkTypeClass(_)))
+  private def checkIs(is: Is)(implicit scope: Scope): TIs = new TIs(is.list.map(checkTypeClass))
 
-  private def checkDeclareMap(decMap: DeclareMap, is: Is)(implicit scope: Scope): TDeclareMap = {
+  private def checkDeclareMap(decMap: DeclareMap, is: IIs)(implicit scope: Scope): TDeclareMap = {
     new TDeclareMap(decMap.map.map(checkPonyMap(_, is)))
   }
 
-  private def checkPonyMap(pm: PonyMap, is: Is)(implicit scope: Scope): TPonyMap = new TPonyMap(bodyLookUp(pm.from, is), pm.to)
+  private def checkPonyMap(pm: PonyMap, is: IIs)(implicit scope: Scope): TPonyMap = new TPonyMap(bodyLookUp(pm.from, is), pm.to)
 
-  private def checkOf(of: OfType)(implicit scope: Scope): TOfType = new TOfType(of.typeList.map(checkTypeElement(_)))
+  private def checkOf(of: OfType)(implicit scope: Scope): TOfType = new TOfType(of.typeList.map(checkTypeElement))
+
+  private def checkTypeElement(elem: ITypeElement)(implicit scope: Scope): TTypeElement = elem match {
+    case IPartialType(clazz) => new TPartialType(checkTypeClass(clazz))
+    case t: ITypeClass => checkTypeClass(t)
+    case l: ILambda => checkLambda(l)
+  }
 
   private def checkTypeElement(element: TypeElement)(implicit scope: Scope): TTypeElement = element match {
     case PartialType(name) => new TPartialType(checkTypeClass(name))
@@ -49,15 +67,19 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
     case l: Lambda => checkLambda(l)
   }
 
+  private def checkLambda(l: ILambda)(implicit scope: Scope): TLambda = {
+    new TLambda(checkMode(l.mode), checkArgs(l.args), checkOptArgs(l.result), l.throws, checkOptBlock(l.block))
+  }
+
   private def checkLambda(l: Lambda)(implicit scope: Scope): TLambda = {
     new TLambda(checkMode(l.mode), checkArgs(l.args), checkOptArgs(l.result), l.throws, checkOptBlock(l.block))
   }
 
-  private def checkArgs(list: List[Arg])(implicit scope: Scope): List[TArg] = list.map(checkArg(_))
+  private def checkArgs(list: List[Arg])(implicit scope: Scope): List[TArg] = list.map(checkArg)
 
   private def checkArg(arg: Arg)(implicit scope: Scope): TArg = {
-    val expr = arg.expr.map(checkExpression(_))
-    val ofType = arg.ofType.map(checkOf(_))
+    val expr = arg.expr.map(checkExpression)
+    val ofType = arg.ofType.map(checkOf)
     val assign = arg.assign.map(checkAssignment(_, ofType.get))
 
     new TArg(expr, ofType, assign)
@@ -107,8 +129,12 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
   }
 
   private def checkSecondCommand(snd: SecondCommand, ofType: TOfType)(implicit scope: Scope): TSecondCommand = snd match {
-    case SecondCommandArgs(args) => new TSecondCommandArgs(checkArgs(args))
-    case CommandCall(id, formalArgs, args) => new TCommandCall(bodyLookUp(id, ofType), checkFormal(formalArgs), checkArgs(args))
+    case SecondCommandArgs(args) => {
+      new TSecondCommandArgs(checkArgs(args))
+    }
+    case CommandCall(id, formalArgs, args) => {
+      new TCommandCall(bodyLookUp(id, ofType), checkFormal(formalArgs), checkArgs(args))
+    }
   }
 
   private def checkOpUnary(list: List[(Operator, Unary)])(implicit scope: Scope): List[(Operator, TUnary)] = {
@@ -116,11 +142,11 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
   }
 
   private def checkOptArgs(l: Option[List[Arg]])(implicit scope: Scope): Option[List[TArg]] = {
-    l.map(checkArgs(_))
+    l.map(checkArgs)
   }
 
   private def checkOptBlock(block: Option[Block])(implicit scope: Scope): Option[TBlock] = {
-    block.map(checkBlock(_))
+    block.map(checkBlock)
   }
 
   private def checkBlock(block: Block)(implicit scope: Scope): TBlock = {
@@ -141,36 +167,69 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
     case Break => (TBreak, scope) // TODO: Should we check if we're in a loop here
     case Continue => (TContinue, scope)
     case b:Block => (checkBlock(b), scope)
-    case VarDec(id, ofType, expr) => {
-      // TODO type inference could be done here
-      assert(ofType.isDefined, s"Variable $id has no type parameter assigned to it, when inference is added this will go away")
-      val of = ofType.map(checkOf(_)).get
-      if (scope.varScope.contains(id))
-        throw new VariableShadowingException(s"Variable $id, of type $of shadows variable with type ${scope.varScope.get(id)}")
-      else {
-        // TODO: check assignment type matches
-        (new TVarDec(id, Some(of), expr.map(checkExpression(_))), scope.copy(varScope = scope.varScope + (id -> of)))
-      }
-    }
-    case Match(list, cases) => ???
-    case DoLoop(block, whileExpr) => ???
-    case WhileLoop(whileExpr, block) => ???
-    case ForLoop(forVars, inExpr, block) => ???
-    case Conditional(condList, elseBlock) => ???
-    case Assignment(lValues, optExpr) => ???
+    case v: VarDec => checkVarDec(v)
+    case Match(list, cases) => (new TMatch(list.map(checkExpression), cases.map(checkCaseBlock)), scope)
+    case DoLoop(block, whileExpr) => (new TDoLoop(checkBlock(block), checkBooleanExpr(whileExpr)), scope)
+    case WhileLoop(whileExpr, block) => (new TWhileLoop(checkBooleanExpr(whileExpr), checkBlock(block)), scope)
+    case ForLoop(forVars, inExpr, block) => (new TForLoop(forVars.map(checkForVar), checkExpression(inExpr), checkBlock(block)), scope)
+    case Conditional(condList, elseBlock) => (new TConditional(condList.map(t => checkBooleanExpr(t._1) -> checkBlock(t._2)), elseBlock.map(checkBlock)), scope)
+    case Assignment(lValues, optExpr) => (new TAssignment(lValues.map(checkLValue), optExpr.map(checkExpression)), scope)
   }
 
-  private def checkFormal(formal: FormalArgs)(implicit scope: Scope): TFormalArgs = formal.map(checkTypeClass(_))
+  def checkLValue(l: LValue)(implicit scope: Scope): TLValue = l match {
+    case LValueVar(nVar) => {
+      val varDec = checkVarDec(nVar)
+      new TLValueVar(varDec._1)(varDec._2)
+    }
+    case LValueCommand(command) => new TLValueCommand(checkCommand(command))
+  }
+
+  def checkVarDec(nVar: VarDec)(implicit scope: Scope): (TVarDec, Scope) = {
+    val of = nVar.ofType.map(checkOf).getOrElse(throw new TyperInferenceException)
+    if (scope.varScope.contains(nVar.id))
+      throw new VariableShadowingException(s"Variable ${nVar.id}, of type ${nVar.ofType} shadows variable with type ${scope.varScope.get(nVar.id)}")
+    else {
+      (new TVarDec(nVar.id, of, nVar.assign.map(checkExpression)), scope.copy(varScope = scope.varScope + (nVar.id -> of)))
+    }
+  }
+
+  def checkBooleanExpr(expr: Expr)(implicit scope: Scope): TExpr = {
+    val ex = checkExpression(expr)
+    if (ex.extractOfType eq boolOfType)
+      ex
+    else
+      throw new TypeMismatch(ex.extractOfType.toString, boolOfType.toString)
+  }
+
+  private def checkCaseBlock(c: CaseBlock)(implicit scope: Scope): TCaseBlock = new TCaseBlock(c.subBlock.map(checkCaseSubBlock), checkBlock(c.block))
+
+  private def checkCaseSubBlock(sub: CaseSubBlock)(implicit scope: Scope): TCaseSubBlock = sub match {
+    case CaseIf(expr) => new TCaseIf(checkExpression(expr))
+    case CaseVarList(varList) => new TCaseVarList(varList.map(checkCaseVar))
+  }
+
+  private def checkCaseVar(caseVar: CaseVar)(implicit scope: Scope): TCaseVar = {
+    new TCaseVar(caseVar.expr.map(checkExpression), checkForVar(caseVar.forVar))
+  }
+
+  private def checkForVar(forVar: ForVar)(implicit scope: Scope): TForVar = {
+    if (scope.varScope.contains(forVar.id))
+      throw new VariableShadowingException(s"${forVar.id} redefined in ${scope.filename}")
+    else
+      new TForVar(forVar.id, checkOf(forVar.ofType.getOrElse(throw new TyperInferenceException)))
+  }
+
+  private def checkFormal(formal: FormalArgs)(implicit scope: Scope): TFormalArgs = formal.map(checkTypeClass)
 
   private def checkTypeBody(typeBody: TypeBody)(implicit scope: Scope): TTypeBody = new TTypeBody(typeBody.body.map(t => t._1 -> checkBodyContent(t._2)))
 
   private def checkBodyContent(bodyContent: BodyContent)(implicit scope: Scope): TBodyContent = bodyContent match {
-    case Field(name, ofType, expr) => new TField(name, checkOf(ofType), expr.map(checkExpression(_)))
+    case Field(name, ofType, expr) => new TField(name, checkOf(ofType), expr.map(checkExpression))
     case Delegate(name, ofType) => new TDelegate(name, checkOf(ofType))
-    case Constructor(contents, throws, block) => new TConstructor(checkContents(contents), throws, block.map(checkBlock(_)))
-    case Ambient(contents, throws, block) => new TAmbient(checkContents(contents), throws, block.map(checkBlock(_)))
-    case Function(contents, results, throws, block) => new TFunction(checkContents(contents), checkOptArgs(results), throws, block.map(checkBlock(_)))
-    case Message(contents, block) => new TMessage(checkContents(contents), block.map(checkBlock(_)))
+    case Constructor(contents, throws, block) => new TConstructor(checkContents(contents), throws, block.map(checkBlock))
+    case Ambient(contents, throws, block) => new TAmbient(checkContents(contents), throws, block.map(checkBlock))
+    case Function(contents, results, throws, block) => new TFunction(checkContents(contents), checkOptArgs(results), throws, block.map(checkBlock))
+    case Message(contents, block) => new TMessage(checkContents(contents), block.map(checkBlock))
   }
 
   private def checkContents(c: MethodContent)(implicit scope: Scope): TMethodContent = {
@@ -186,9 +245,9 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
     case ModeExpr(expr) => new TModeExpr(checkExpression(expr))
   }
 
-  private def bodyLookUp(name: ID, is: Is)(implicit scope: Scope): BodyContent = {
+  private def bodyLookUp(name: ID, is: IIs)(implicit scope: Scope): BodyContent = {
     for (i <- is.list) {
-      val typeclass = scope.search(i)
+      val typeclass = i
     }
     ???
   }

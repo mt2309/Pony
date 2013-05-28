@@ -17,15 +17,18 @@ package object Typer {
 
   val void: Primitive = new Primitive("Void")
 
-  val bool: TPrimitive = new TPrimitive("Boolean")
+  val bool: TPrimitive = new TPrimitive("Boolean")(new Scope)
+  val pInt: TPrimitive = new TPrimitive("Int")(new Scope)
+  val pUInt: TPrimitive = new TPrimitive("UInt")(new Scope)
+  val pChar: TPrimitive = new TPrimitive("Char")(new Scope)
 
-  val boolOfType = new TOfType(Set(bool))
+  val boolOfType = new TOfType(Set(bool))(new Scope)
 
   val primitiveTypes: Set[ModuleMember] = Set(new Primitive("Int"), new Primitive("UInt"), new Primitive("Char"))
 
   // code duplication :(
-  val tVoid = new TPrimitive("Void")
-  val tPrimitiveTypes: Set[TModuleMember] = Set(new TPrimitive("Int"), new TPrimitive("UInt"), new TPrimitive("Char"))
+  val tVoid = new TPrimitive("Void")(new Scope)
+  val tPrimitiveTypes: Set[TModuleMember] = Set(bool, pInt, pUInt, pChar)
 
   type VariableScope = Map[ID, TOfType]
 

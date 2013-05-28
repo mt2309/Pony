@@ -12,19 +12,22 @@ final case class Module(imports:Set[Use], classes: Map[TypeId, ModuleMember])
 
 final case class Use(toType: Option[TypeId], importName: String)
 
-sealed abstract class ModuleMember(val typeName: TypeId)
+sealed abstract class ModuleMember(val typeName: TypeId)(implicit val fileName: Filename)
 
-final case class Primitive(name: TypeId) extends ModuleMember(name)
-final case class Declare(typeClass: TypeClass, is: Is, declareMap: DeclareMap) extends ModuleMember(typeClass.name)
-final case class Type(n: TypeId, ofType: OfType, is: Is) extends ModuleMember(n)
+final case class Primitive(name: TypeId) extends ModuleMember(name)("Primitive value")
+final case class Declare(typeClass: TypeClass, is: Is, declareMap: DeclareMap)(implicit val filename: Filename) extends ModuleMember(typeClass.name)
+final case class Type(n: TypeId, ofType: OfType, is: Is)(implicit val filename: Filename) extends ModuleMember(n)
 
 sealed abstract class
-PonyParserClass(val name: TypeId, val formalArgs: FormalArgs, val is:Is, val typeBody: TypeBody)
+PonyParserClass(val name: TypeId, val formalArgs: FormalArgs, val is:Is, val typeBody: TypeBody)(implicit val filename: Filename)
   extends ModuleMember(name)
 
-final case class Actor(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)   extends PonyParserClass(n,f,i,t)
-final case class Trait(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)   extends PonyParserClass(n,f,i,t)
-final case class Object(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)  extends PonyParserClass(n,f,i,t)
+final case class Actor
+(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)(implicit override val filename: Filename)  extends PonyParserClass(n,f,i,t)
+final case class Trait
+(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)(implicit override val filename: Filename)  extends PonyParserClass(n,f,i,t)
+final case class Object
+(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)(implicit override val filename: Filename)  extends PonyParserClass(n,f,i,t)
 
 final case class CombinedArgs(formalArgs: FormalArgs, args: Args)
 final case class Arg(expr: Option[Expr], ofType: Option[OfType], assign: Option[Expr])
@@ -80,7 +83,7 @@ final case class ForLoop(forVars: List[ForVar], inExpr: Expr, block: Block) exte
 final case class Conditional(conditionalList: List[(Expr, Block)], elseBlock: Option[Block]) extends BlockContent
 final case class Assignment(lValues: List[LValue], expr: Option[Expr]) extends BlockContent
 
-final case class CaseBlock(c: Option[CaseSubBlock], block: Block)
+final case class CaseBlock(subBlock: Option[CaseSubBlock], block: Block)
 sealed abstract class CaseSubBlock
 final case class CaseIf(expr: Expr) extends CaseSubBlock
 final case class CaseVarList(varList: List[CaseVar]) extends CaseSubBlock

@@ -6,13 +6,17 @@ import language.postfixOps
 import com.github.mt2309.pony.AST._
 import com.github.mt2309.pony.Common._
 
+object PonyParser {
 
-object PonyParser extends RegexParsers {
+  def parse(file: (Filename, FileContents)): Option[Module] = new PonyParser(file._2)(file._1).parse
+}
 
-  def parse(file: (String, String)): Option[Module] = {
-    parseAll(module, file._2) match {
-      case Success(module, _) => { println(s"Parsing file: ${file._1} was a success"); Some(module) }
-      case e: NoSuccess => {println("failure in " + file._1 + "\t" + e.msg + "\t" + e.next.pos); None }
+final class PonyParser(val contents: FileContents)(implicit val filename: Filename) extends RegexParsers {
+
+  def parse: Option[Module] = {
+    parseAll(module, contents) match {
+      case Success(module, _) => { println(s"Parsing file: $filename was a success"); Some(module) }
+      case e: NoSuccess => {println(s"failure in $filename\t${e.msg}\t${e.next.pos}"); None }
     }
   }
 

@@ -22,3 +22,6 @@ final class VariableNotFoundException(msg: String) extends TyperException(msg)
 final class AssignmentException(msg: String) extends TyperException(msg)
 final class VariableShadowingException(msg: String) extends TyperException(msg)
 final class LambdaInMethCallException(msg: String) extends TyperException(msg)
+final class TypeMismatch(expected: String, got: String) extends TyperException(s"Got $expected, but expected $got")
+
+final class TyperInferenceException extends TyperException("Type inference is not enabled or working yet, please annotate with types")

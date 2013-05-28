@@ -14,7 +14,7 @@ import com.github.mt2309.pony.AST.Object
  * Date: 21/05/2013
  * Time: 15:57
  */
-class TopTypeModule(val filename: Filename, moduleScope: TypeScope, module: Module) {
+class TopTypeModule(val filename: Filename, moduleScope: Map[TypeId, ModuleMember], module: Module) {
 
   val imports: UnqualifiedCompilationUnits = {
     val unqualifiedIm = for (i <- module.imports.filter(_.toType.isEmpty)) yield Loader.load(filename, i.importName)
@@ -26,11 +26,11 @@ class TopTypeModule(val filename: Filename, moduleScope: TypeScope, module: Modu
     new QualifiedCompilationUnits(qualified)
   }
 
-  val scope: TypeScope = moduleScope ++ imports.units.map(_.typeScope).flatten
+  val scope: Map[TypeId, ModuleMember] = moduleScope
 
   def typeCheck: PreTypedModule = {
     val imp = typedImports -> imports
-    new PreTypedModule(imp, module.classes)(new Scope(scope, imp, Map.empty, filename))
+    new PreTypedModule(imp, module.classes)(scope, filename)
   }
 
 }
