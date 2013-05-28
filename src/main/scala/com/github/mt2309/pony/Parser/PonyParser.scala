@@ -15,7 +15,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
 
   def parse: Option[Module] = {
     parseAll(module, contents) match {
-      case Success(module, _) => { println(s"Parsing file: $filename was a success"); Some(module) }
+      case Success(module, _ ) => { println(s"Parsing file: $filename was a success"); Some(module) }
       case e: NoSuccess => {println(s"failure in $filename\t${e.msg}\t${e.next.pos}"); None }
     }
   }
