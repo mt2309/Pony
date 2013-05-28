@@ -27,7 +27,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
 
   private def use: Parser[Use] = "use" ~> ((typeId <~ "=")?) ~ string ^^ {s => new Use(s._1, s._2)}
 
-  private def declare: Parser[Declare] = "declare" ~> typeclass ~ is ~ (declaremap?) ^^ {
+  private def declare: Parser[Declare] = "declare" ~> typeId ~ is ~ (declaremap?) ^^ {
     s => new Declare(s._1._1, s._1._2.getOrElse(new Is(List.empty)), s._2.getOrElse(new DeclareMap(List.empty)))
   }
 

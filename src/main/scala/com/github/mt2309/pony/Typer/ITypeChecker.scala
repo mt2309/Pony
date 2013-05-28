@@ -21,11 +21,12 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
   private def pullInTypesModule(pre: PreTypedModule): ITypedModule = {
     val classes: Map[TypeId, IModuleMember] = pre.classes.map(c => c._1 -> pullInTypes(c._2)(pre.scope, pre.imports))
 
-    val notInThisModule = modules.filterNot(_.filename == pre.filename)
+    val notInThisModule = modules.filterNot(b => (b.filename == pre.filename))
     val more = notInThisModule.map(t => t.scope).flatten
+
     val extraScope: Map[TypeId, IModuleMember] = {
-      more.map(t => t._1 -> pullInTypes(t._2)(
-        modules.find(_.filename == t._2.fileName).get.scope, modules.find(_.filename == t._2.fileName).get.imports)
+      more.filter(_._2.fileName != "Primitive value").map(t => t._1 -> pullInTypes(t._2)(
+        modules.find(b => b.filename == t._2.fileName).get.scope, modules.find(_.filename == t._2.fileName).get.imports)
       ).toMap
     }
 
@@ -43,7 +44,7 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
     val i = ITypeChecker.lookUp(m)
 
     val res = i.getOrElse(m match {
-      case Declare(clazz, is, map) => new IDeclare(pullInTypeClass(clazz), pullInIs(is), map)
+      case d:Declare => new IDeclare(d.name, pullInIs(d.is), d.declareMap)
       case Actor(name, formal, is, body) => new IActor(name, pullInFormal(formal), pullInIs(is), body)
       case Object(name, formal, is, body) => new IObject(name, pullInFormal(formal), pullInIs(is), body)
       case Primitive(name) => new IPrimitive(name)
@@ -51,7 +52,8 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
       case Type(name, of, is) => new IType(name, pullInOf(of), pullInIs(is))
     })
 
-    ITypeChecker.store(m, res)
+    if (i.isEmpty) ITypeChecker.store(m, res)
+
     res
   }
 
@@ -73,7 +75,8 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
 
   private def pullInTypeClass(clazz: TypeClass)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits): ITypeClass = {
     val modMember: IModuleMember = {
-      imports.searchType(clazz).getOrElse(pullInTypes(scope.getOrElse(clazz.name, throw new TypeClassNotFoundException(clazz.toString))))
+      val imp = imports.searchType(clazz)
+      imp.getOrElse(pullInTypes(scope.getOrElse(clazz.name, throw new TypeClassNotFoundException(s"$clazz not found in file ${clazz.fileName}"))))
     }
 
     new ITypeClass(modMember, clazz.mode, clazz.formalArgs)

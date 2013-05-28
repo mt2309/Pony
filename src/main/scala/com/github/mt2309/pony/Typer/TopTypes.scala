@@ -10,7 +10,7 @@ import com.github.mt2309.pony.Common._
  */
 final class TopTypes(val modules: Set[(Filename, Option[Module])]) extends TypeChecker {
 
-  private val moduleScope: Map[TypeId, ModuleMember] = modules.map(_._2.map(_.classes)).flatten.flatten.toMap
+  private val moduleScope: Map[TypeId, ModuleMember] = modules.map(_._2.map(_.classes)).flatten.flatten.toMap ++ primMap
 
   def topLevelTypes: Set[PreTypedModule] = modules.filter(_._2.isDefined).map(t => topLevelType(t._1, t._2.get))
 

@@ -15,7 +15,7 @@ final case class Use(toType: Option[TypeId], importName: String) extends NotNull
 sealed abstract class ModuleMember(val typeName: TypeId)(implicit val fileName: Filename) extends NotNull
 
 final case class Primitive(name: TypeId) extends ModuleMember(name)("Primitive value") with NotNull
-final case class Declare(typeClass: TypeClass, is: Is, declareMap: DeclareMap)(implicit val filename: Filename) extends ModuleMember(typeClass.name) with NotNull
+final case class Declare(name: TypeId, is: Is, declareMap: DeclareMap)(implicit val filename: Filename) extends ModuleMember(name) with NotNull
 final case class Type(n: TypeId, ofType: OfType, is: Is)(implicit val filename: Filename) extends ModuleMember(n) with NotNull
 
 sealed abstract class
@@ -32,14 +32,17 @@ final case class Object
 final case class CombinedArgs(formalArgs: FormalArgs, args: Args) extends NotNull
 final case class Arg(expr: Option[Expr], ofType: Option[OfType], assign: Option[Expr]) extends NotNull
 
-sealed abstract class TypeElement extends NotNull
-final case class PartialType(typeClass: TypeClass) extends TypeElement with NotNull
+sealed abstract class TypeElement(implicit val fileName: Filename) extends NotNull
+final case class PartialType(typeClass: TypeClass)(implicit override val fileName: Filename) extends TypeElement with NotNull
 
-final case class TypeClass(name: TypeId, module:Option[TypeId] = None, mode: Mode = ReadOnly, formalArgs: FormalArgs = List.empty) extends TypeElement with NotNull {
+final case class TypeClass(name: TypeId,
+                           module:Option[TypeId] = None,
+                           mode: Mode = ReadOnly,
+                           formalArgs: FormalArgs = List.empty)(implicit override val fileName: Filename) extends TypeElement with NotNull {
   override def toString: String = if (module.isDefined) name ++ module.get else name
 }
 
-final case class Lambda(mode: Mode, args: List[Arg], result: Option[List[Arg]], throws: Boolean, block: Option[Block]) extends TypeElement with NotNull
+final case class Lambda(mode: Mode, args: List[Arg], result: Option[List[Arg]], throws: Boolean, block: Option[Block])(implicit override val fileName: Filename) extends TypeElement with NotNull
 
 sealed abstract class Mode extends NotNull
 object ReadOnly     extends Mode with NotNull

@@ -1,7 +1,7 @@
 package com.github.mt2309.pony
 
-import com.github.mt2309.pony.AST.{OfType, ModuleMember, Primitive}
-import com.github.mt2309.pony.Common.ID
+import com.github.mt2309.pony.AST.{ModuleMember, Primitive}
+import com.github.mt2309.pony.Common.{ID, TypeId}
 
 /**
  * User: mthorpe
@@ -25,6 +25,7 @@ package object Typer {
   val boolOfType = new TOfType(Set(bool))(new Scope)
 
   val primitiveTypes: Set[ModuleMember] = Set(new Primitive("Int"), new Primitive("UInt"), new Primitive("Char"))
+  val primMap: Map[TypeId, ModuleMember] = primitiveTypes.map(t => t.typeName -> t).toMap
 
   // code duplication :(
   val tVoid = new TPrimitive("Void")(new Scope)

@@ -20,7 +20,7 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
 
   private def checkClass(moduleMember: IModuleMember)(implicit scope: Scope): TModuleMember = moduleMember match {
     case IPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found where it should not be")
-    case IDeclare(t, is, map) => new TDeclare(checkTypeClass(t), checkIs(is), checkDeclareMap(map, is))
+    case IDeclare(t, is, map) => new TDeclare(t, checkIs(is), checkDeclareMap(map, is))
     case IType(name, of, is) => new TType(name, checkOf(of), checkIs(is))
     case IActor(name, formal, is, typeBody) => new TActor(  name, checkIFormal(formal), checkIs(is), checkTypeBody(typeBody))
     case IObject(name, formal, is, typeBody) => new TObject(name, checkIFormal(formal), checkIs(is), checkTypeBody(typeBody))
@@ -44,8 +44,6 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
 
     new TTypeClass(t, checkMode(typeclass.mode), checkFormal(typeclass.formalArgs))
   }
-
-  private def checkIs(is: Is)(implicit scope: Scope): TIs = new TIs(is.list.map(checkTypeClass))
 
   private def checkDeclareMap(decMap: DeclareMap, is: IIs)(implicit scope: Scope): TDeclareMap = {
     new TDeclareMap(decMap.map.map(checkPonyMap(_, is)))

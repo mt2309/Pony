@@ -63,7 +63,7 @@ final case class TypedModule(imports:CompilationUnits, classes: Map[TypeId, TMod
 sealed abstract class TModuleMember(val name: TypeId)(implicit val scope: Scope) extends NotNull
 
 final case class TPrimitive(typename: TypeId)(implicit override val scope: Scope) extends TModuleMember(typename) with TTypeElement
-final case class TDeclare(typeClass: TTypeClass, is: TIs, declareMap: TDeclareMap)(implicit override val scope: Scope) extends TModuleMember(typeClass.moduleMember.name)
+final case class TDeclare(typename: TypeId, is: TIs, declareMap: TDeclareMap)(implicit override val scope: Scope) extends TModuleMember(typename)
 final case class TType(n: TypeId, ofType: TOfType, is: TIs)(implicit override val scope: Scope) extends TModuleMember(n)
 
 abstract class PonyClass(val na: TypeId, val formalArgs: TFormalArgs, val is:TIs, val typeBody: TTypeBody)(implicit override val scope: Scope) extends TModuleMember(na)

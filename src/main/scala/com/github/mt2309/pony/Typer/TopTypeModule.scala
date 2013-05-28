@@ -14,7 +14,7 @@ import com.github.mt2309.pony.AST.Object
  * Date: 21/05/2013
  * Time: 15:57
  */
-class TopTypeModule(val filename: Filename, moduleScope: Map[TypeId, ModuleMember], module: Module) {
+final class TopTypeModule(val filename: Filename, moduleScope: Map[TypeId, ModuleMember], module: Module) {
 
   val imports: UnqualifiedCompilationUnits = {
     val unqualifiedIm = for (i <- module.imports.filter(_.toType.isEmpty)) yield Loader.load(filename, i.importName)

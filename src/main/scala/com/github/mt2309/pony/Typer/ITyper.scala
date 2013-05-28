@@ -13,7 +13,7 @@ final case class ITypedModule(imports: CompilationUnits, types: Map[TypeId, IMod
 sealed abstract class IModuleMember(val name: TypeId) extends NotNull
 
 final case class IPrimitive(typename: TypeId) extends IModuleMember(typename)
-final case class IDeclare(typeClass: ITypeClass, is: IIs, declareMap: DeclareMap) extends IModuleMember(typeClass.iType.name)
+final case class IDeclare(override val name: TypeId, is: IIs, declareMap: DeclareMap) extends IModuleMember(name)
 final case class IType(typename: TypeId, ofType: IOfType, is: IIs) extends IModuleMember(typename)
 
 sealed abstract class IPonyClass(val na: TypeId, val formalArgs: IFormalArgs, val is:IIs, val typeBody: TypeBody) extends IModuleMember(na)
