@@ -58,7 +58,7 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
   }
 
   private def pullInOf(of: OfType)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits): IOfType = {
-    new IOfType(of.typeList.map(pullInTypeElement(_)))
+    new IOfType(of.typeList.map(pullInTypeElement))
   }
 
   private def pullInTypeElement(elem: TypeElement)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits): ITypeElement = {
@@ -70,7 +70,7 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
   }
 
   private def pullInFormal(f: FormalArgs)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits): IFormalArgs = {
-    f.map(pullInTypeClass(_))
+    f.map(pullInTypeClass)
   }
 
   private def pullInTypeClass(clazz: TypeClass)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits): ITypeClass = {
@@ -83,7 +83,7 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
   }
 
   private def pullInIs(is: Is)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits): IIs = {
-    new IIs(is.list.map(pullInTypeClass(_)))
+    new IIs(is.list.map(pullInTypeClass))
   }
 
 }

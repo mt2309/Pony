@@ -23,6 +23,9 @@ final case class Scope(typeScope: TypeScope = Map.empty,
                        varScope: VariableScope = Map.empty,
                        filename: Filename = "Primitive") extends NotNull
 {
+  def updateScope(id: ID, of: TOfType): Scope = this.copy(varScope = this.varScope + (id -> of))
+
+
   def search(t: TypeClass): IModuleMember = {
     val i = imports.searchType(t)
 

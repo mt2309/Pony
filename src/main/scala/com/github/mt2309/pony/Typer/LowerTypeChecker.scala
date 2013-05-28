@@ -66,11 +66,11 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
   }
 
   private def checkLambda(l: ILambda)(implicit scope: Scope): TLambda = {
-    new TLambda(checkMode(l.mode), checkArgs(l.args), checkOptArgs(l.result), l.throws, checkOptBlock(l.block))
+    new TLambda(checkMode(l.mode), checkArgs(l.args), l.result.map(checkArgs), l.throws, l.block.map(checkBlock))
   }
 
   private def checkLambda(l: Lambda)(implicit scope: Scope): TLambda = {
-    new TLambda(checkMode(l.mode), checkArgs(l.args), checkOptArgs(l.result), l.throws, checkOptBlock(l.block))
+    new TLambda(checkMode(l.mode), checkArgs(l.args), l.result.map(checkArgs), l.throws, l.block.map(checkBlock))
   }
 
   private def checkArgs(list: List[Arg])(implicit scope: Scope): List[TArg] = list.map(checkArg)
@@ -127,28 +127,16 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
   }
 
   private def checkSecondCommand(snd: SecondCommand, ofType: TOfType)(implicit scope: Scope): TSecondCommand = snd match {
-    case SecondCommandArgs(args) => {
-      new TSecondCommandArgs(checkArgs(args))
-    }
-    case CommandCall(id, formalArgs, args) => {
-      new TCommandCall(bodyLookUp(id, ofType), checkFormal(formalArgs), checkArgs(args))
-    }
+    case SecondCommandArgs(args) => new TSecondCommandArgs(checkArgs(args))
+    case CommandCall(id, formalArgs, args) => new TCommandCall(bodyLookUp(id, ofType), checkFormal(formalArgs), checkArgs(args))
   }
 
   private def checkOpUnary(list: List[(Operator, Unary)])(implicit scope: Scope): List[(Operator, TUnary)] = {
     list.map(t => t._1 -> checkUnary(t._2))
   }
 
-  private def checkOptArgs(l: Option[List[Arg]])(implicit scope: Scope): Option[List[TArg]] = {
-    l.map(checkArgs)
-  }
-
-  private def checkOptBlock(block: Option[Block])(implicit scope: Scope): Option[TBlock] = {
-    block.map(checkBlock)
-  }
-
   private def checkBlock(block: Block)(implicit scope: Scope): TBlock = {
-    new TBlock(checkBlockContents(block.contents), checkOptBlock(block.catchBlock), checkOptBlock(block.alwaysBlock))
+    new TBlock(checkBlockContents(block.contents), block.catchBlock.map(checkBlock), block.alwaysBlock.map(checkBlock))
   }
 
   private def checkBlockContents(list: List[BlockContent])(implicit scope: Scope): List[TBlockContent] = list match {
@@ -219,15 +207,31 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
 
   private def checkFormal(formal: FormalArgs)(implicit scope: Scope): TFormalArgs = formal.map(checkTypeClass)
 
-  private def checkTypeBody(typeBody: TypeBody)(implicit scope: Scope): TTypeBody = new TTypeBody(typeBody.body.map(t => t._1 -> checkBodyContent(t._2)))
+  private def checkTypeBody(typeBody: TypeBody)(implicit scope: Scope): TTypeBody = new TTypeBody(checkBodyContents(typeBody.body))
 
-  private def checkBodyContent(bodyContent: BodyContent)(implicit scope: Scope): TBodyContent = bodyContent match {
-    case Field(name, ofType, expr) => new TField(name, checkOf(ofType), expr.map(checkExpression))
-    case Delegate(name, ofType) => new TDelegate(name, checkOf(ofType))
-    case Constructor(contents, throws, block) => new TConstructor(checkContents(contents), throws, block.map(checkBlock))
-    case Ambient(contents, throws, block) => new TAmbient(checkContents(contents), throws, block.map(checkBlock))
-    case Function(contents, results, throws, block) => new TFunction(checkContents(contents), checkOptArgs(results), throws, block.map(checkBlock))
-    case Message(contents, block) => new TMessage(checkContents(contents), block.map(checkBlock))
+  private def checkBodyContents(bd: Map[ID, BodyContent])(implicit scope: Scope): Map[ID, TBodyContent] = {
+    if (bd.isEmpty) {
+      Map.empty
+    }
+    else {
+      val tup = checkBodyContent(bd.head._2)
+      Map(bd.head._1 -> tup._1) ++ checkBodyContents(bd.tail)(tup._2)
+    }
+  }
+
+  private def checkBodyContent(bodyContent: BodyContent)(implicit scope: Scope): (TBodyContent, Scope) = bodyContent match {
+    case Field(name, ofType, expr) => {
+      val of = checkOf(ofType)
+      new TField(name, of, expr.map(checkExpression)) -> scope.updateScope(name, of)
+    }
+    case Delegate(name, ofType) => {
+      val of = checkOf(ofType)
+      new TDelegate(name, of) -> scope.updateScope(name, of)
+    }
+    case Constructor(contents, throws, block) => new TConstructor(checkContents(contents), throws, block.map(checkBlock)) -> scope
+    case Ambient(contents, throws, block) => new TAmbient(checkContents(contents), throws, block.map(checkBlock)) -> scope
+    case Function(contents, results, throws, block) => new TFunction(checkContents(contents), results.map(checkArgs), throws, block.map(checkBlock)) -> scope
+    case Message(contents, block) => new TMessage(checkContents(contents), block.map(checkBlock)) -> scope
   }
 
   private def checkContents(c: MethodContent)(implicit scope: Scope): TMethodContent = {
