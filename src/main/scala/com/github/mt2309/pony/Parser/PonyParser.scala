@@ -15,13 +15,13 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
 
   def parse: Option[Module] = {
     parseAll(module, contents) match {
-      case Success(module, _ ) => { println(s"Parsing file: $filename was a success"); Some(module) }
+      case Success(module, _ ) => {println(s"Parsing file: $filename was a success"); Some(module) }
       case e: NoSuccess => {println(s"failure in $filename\t${e.msg}\t${e.next.pos}"); None }
     }
   }
 
   // Module - top level of everything
-  private def module: Parser[Module] = ((use*) ~ (namedMembers*)) ^^ {s => new Module(s._1.toSet, s._2.map(x => x.typeName -> x).toMap)}
+  private def module: Parser[Module] = ((use*) ~ (namedMembers+)) ^^ {s => new Module(s._1.toSet, s._2.map(x => x.typeName -> x).toMap)}
 
   private def namedMembers: Parser[ModuleMember] = declare | traitParser | objectParser | actor | typeParser
 

@@ -1,15 +1,15 @@
 package com.github.mt2309.pony.AST
 
 import com.github.mt2309.pony.Common._
-import scala.util.parsing.input.Positional
 
 /**
  * User: mthorpe
  * Date: 26/04/2013
  * Time: 00:16
  */
+final case class PonyPos(line: Int, column: Int)
 
-trait AST extends Positional with AST
+trait AST extends NotNull
 
 final case class Module(imports:Set[Use], classes: Map[TypeId, ModuleMember]) extends AST
 
