@@ -85,7 +85,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   private def combinedArgs: Parser[CombinedArgs] = formalArgs ~ params ^^ {s => new CombinedArgs(s._1.getOrElse(List.empty),s._2)}
   private def results: Parser[Option[Params]] = (("->" ~> params)?)
 
-  private def params: Parser[Params] = parserList(param, ",")
+  private def params: Parser[Params] = "(" ~> (parserList(param, ",")?) <~ ")" ^^ {s => s.getOrElse(List.empty)}
 
   private def param: Parser[Param] = id ~ ofType ^^ {s => new Param(s._1, s._2)}
 

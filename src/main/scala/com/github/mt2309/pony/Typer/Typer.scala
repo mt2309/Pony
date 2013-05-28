@@ -10,61 +10,6 @@ import com.github.mt2309.pony.CompilationUnit.{UnqualifiedCompilationUnits, Qual
  * Time: 00:57
  */
 
-//final case class TypedModule(imports: CompilationUnits, types: Map[TypeId, ModuleMember], typeScope: TypeScope)
-//final case class TypedModuleMember
-//final case class PonyClass(typeClass: TypeId, formalArgs: FormalArgs, is:List[TypeClass], typeBody: TypeBody)
-//
-//final case class TypedModuleMember(typeClass: TypeId, content: TypedBodyContent)
-//final case class TypedDeclare(typeClass: TypeClass, is: Is, declareMap: Option[DeclareMap]) extends TypedBodyContent
-//class TypedClass(val ponyClass: PonyParserClass, val symTable: VariableSymbolTable) extends TypedBodyContent
-
-final case class Scope(typeScope: TypeScope = Map.empty,
-                       imports: CompilationUnits = (new QualifiedCompilationUnits(Map.empty) -> new UnqualifiedCompilationUnits(Set.empty)),
-                       varScope: VariableScope = Map.empty,
-                       filename: Filename = "Primitive") extends NotNull
-{
-  def updateScope(id: ID, of: TOfType): Scope = this.copy(varScope = this.varScope + (id -> of))
-
-
-  def search(t: TypeClass): IModuleMember = {
-    val i = imports.searchType(t)
-
-    i.getOrElse(typeScope.getOrElse(t.name, throw new TypeClassNotFoundException(s"$t not found in ${t.fileName}")))
-  }
-
-  def search(t: TTypeClass): IModuleMember = t.moduleMember
-
-  def search(m: ModuleMember): IModuleMember = search(m.typeName)
-
-  def checkIsList(i: IIs): Boolean = {
-    for (mem <- i.list) {
-      search(mem.iType.name)
-    }
-
-    true
-  }
-
-  def findMethod(id: ID, of: TOfType): BodyContent = {
-    for (t <- of.typeList) {
-      t match {
-        case p: TPartialType => search(p.name)
-        case t: TTypeClass => search(t)
-        case l: TLambda => throw new LambdaInMethCallException(s"Lambda found in method lookup for for id $id")
-        case TPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")
-      }
-    }
-
-    ???
-  }
-
-  def findMethod(id: ID, is: IIs): BodyContent = {
-    ???
-  }
-
-  def search(t: TypeId): IModuleMember = typeScope.getOrElse(t, throw new TypeNotFoundException(t))
-
-  def searchID(i: ID): TOfType = varScope.getOrElse(i, throw new VariableNotFoundException(s"$i not found in $filename"))
-}
 
 final case class PreTypedModule(imports: CompilationUnits, classes: Map[TypeId, ModuleMember])(implicit val scope: Map[TypeId, ModuleMember], val filename: Filename) extends NotNull
 
@@ -72,7 +17,10 @@ final case class TypedModule(imports:CompilationUnits, classes: Map[TypeId, TMod
 
 sealed abstract class TModuleMember(val name: TypeId)(implicit val scope: Scope) extends NotNull
 
-final case class TPrimitive(typename: TypeId)(implicit override val scope: Scope) extends TModuleMember(typename) with TTypeElement
+final case class TPrimitive(typename: TypeId)(implicit override val scope: Scope) extends TModuleMember(typename) with TTypeElement {
+  def toIPrim: IPrimitive = new IPrimitive(typename)
+}
+
 final case class TDeclare(typename: TypeId, is: TIs, declareMap: TDeclareMap)(implicit override val scope: Scope) extends TModuleMember(typename)
 final case class TType(n: TypeId, ofType: TOfType, is: TIs)(implicit override val scope: Scope) extends TModuleMember(n)
 
@@ -119,7 +67,10 @@ final case class TMessage(contents: TMethodContent, block: Option[TBlock])(impli
 final case class TMethodContent(mode: TMode, id:ID, combinedArgs: TCombinedArgs)(implicit val scope: Scope) extends NotNull
 
 final case class TExpr(unary: TUnary, operator: List[(Operator, TUnary)])(implicit val scope: Scope) extends NotNull {
-  def extractOfType(implicit scope: Scope): TOfType = ???
+  def extractOfType(implicit scope: Scope): TOfType = {
+    if (operator.isEmpty) unary.extractOfType
+    else numericOfType
+  }
 }
 
 trait TBlockContent extends NotNull
@@ -150,9 +101,17 @@ sealed abstract class TLValue(implicit val scope: Scope) extends NotNull
 final case class TLValueVar(nVar: TVarDec)(implicit override val scope: Scope) extends TLValue
 final case class TLValueCommand(command: TCommand)(implicit override val scope: Scope) extends TLValue
 
-sealed abstract class TUnary(unaryOps: List[UnaryOp])(implicit val scope: Scope) extends NotNull
-final case class TUnaryCommand(un: List[UnaryOp], command: TCommand)(implicit override val scope: Scope) extends TUnary(un)
-final case class TUnaryLambda(un: List[UnaryOp], lambda: TLambda)(implicit override val scope: Scope) extends TUnary(un)
+sealed abstract class TUnary(unaryOps: List[UnaryOp])(implicit val scope: Scope) extends NotNull {
+  def extractOfType(implicit scope: Scope): TOfType
+}
+
+final case class TUnaryCommand(un: List[UnaryOp], command: TCommand)(implicit override val scope: Scope) extends TUnary(un) {
+  def extractOfType(implicit scope: Scope): TOfType = ???
+}
+
+final case class TUnaryLambda(un: List[UnaryOp], lambda: TLambda)(implicit override val scope: Scope) extends TUnary(un) {
+  def extractOfType(implicit scope: Scope): TOfType = ???
+}
 
 final case class TCommand(first: TFirstCommand, second: Option[TSecondCommand])(implicit val scope: Scope) extends NotNull
 
@@ -190,7 +149,7 @@ final case class TPonyID(i: ID) extends TAtom with NotNull{
   def extractOfType(implicit scope: Scope) = scope.searchID(i)
 }
 final case class TPonyTypeId(t: TypeId) extends TAtom with NotNull {
-  def extractOfType(implicit scope: Scope) = ???
+  def extractOfType(implicit scope: Scope):TOfType = new TOfType(Set(new TTypeClass(scope.search(t))))
 }
 
 

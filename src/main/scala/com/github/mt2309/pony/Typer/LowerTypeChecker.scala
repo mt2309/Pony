@@ -184,11 +184,7 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
 
   def checkVarDec(nVar: VarDec)(implicit scope: Scope): (TVarDec, Scope) = {
     val of = nVar.ofType.map(checkOf).getOrElse(throw new TyperInferenceException)
-    if (scope.varScope.contains(nVar.id))
-      throw new VariableShadowingException(s"Variable ${nVar.id}, of type ${nVar.ofType} shadows variable with type ${scope.varScope.get(nVar.id)}")
-    else {
-      (new TVarDec(nVar.id, of, nVar.assign.map(checkExpression)), scope.copy(varScope = scope.varScope + (nVar.id -> of)))
-    }
+    new TVarDec(nVar.id, of, nVar.assign.map(checkExpression)) -> scope.updateScope(nVar.id, of)
   }
 
   def checkBooleanExpr(expr: Expr)(implicit scope: Scope): TExpr = {
@@ -227,12 +223,8 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
   }
 
   private def checkForVar(forVar: ForVar)(implicit scope: Scope): (TForVar, Scope) = {
-    if (scope.varScope.contains(forVar.id))
-      throw new VariableShadowingException(s"${forVar.id} redefined in ${scope.filename}")
-    else {
-      val of = checkOf(forVar.ofType.getOrElse(throw new TyperInferenceException))
-      new TForVar(forVar.id, of) -> scope.updateScope(forVar.id, of)
-    }
+    val of = checkOf(forVar.ofType.getOrElse(throw new TyperInferenceException))
+    new TForVar(forVar.id, of) -> scope.updateScope(forVar.id, of)
   }
 
   private def checkFormal(formal: FormalArgs)(implicit scope: Scope): TFormalArgs = formal.map(checkTypeClass)
@@ -267,7 +259,19 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
     case Message(contents, block) => new TMessage(checkContents(contents), block.map(checkBlock)) -> scope
   }
 
-  private def checkParams(list: Params): TParams = ???
+  private def checkParams(list: Params)(implicit scope: Scope): TParams = list match {
+    case x :: xs => {
+      val res = checkParam(x)
+      res._1 :: checkParams(xs)(res._2)
+    }
+    case Nil => Nil
+  }
+
+  private def checkParam(p: Param)(implicit scope: Scope): (TParam, Scope) = {
+    val of = checkOf(p.ofType)
+
+    new TParam(p.name, of) -> scope.updateScope(p.name, of)
+  }
 
   private def checkContents(c: MethodContent)(implicit scope: Scope): TMethodContent = {
     val comb = new TCombinedArgs(checkFormal(c.combinedArgs.formalArgs), checkParams(c.combinedArgs.args))

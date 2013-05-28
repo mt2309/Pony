@@ -23,7 +23,7 @@ final class CompilationUnit(val absolutePath: String, stage: Int) {
   val iTyped: Set[ITypedModule] = new ITypeChecker(typedAs).typeCheck
   val typeIt: Set[TypedModule] = new LowerTypeChecker(iTyped).typeCheck
 
-  val typeScope: TypeScope = iTyped.map(_.types).flatten.toMap
+  val typeScope: ITypeScope = iTyped.map(_.types).flatten.toMap
 
   private def loadDir: Seq[(Filename, FileContents)] = {
     for (file <- getFilesInDirectory(new File(absolutePath))) yield (file.getAbsolutePath -> io.Source.fromFile(file).mkString)

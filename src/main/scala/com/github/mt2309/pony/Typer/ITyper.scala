@@ -12,7 +12,10 @@ final case class ITypedModule(imports: CompilationUnits, types: Map[TypeId, IMod
 
 sealed abstract class IModuleMember(val name: TypeId) extends NotNull
 
-final case class IPrimitive(typename: TypeId) extends IModuleMember(typename)
+final case class IPrimitive(typename: TypeId) extends IModuleMember(typename) {
+  def toTPrim:TPrimitive = new TPrimitive(typename)(new Scope)
+}
+
 final case class IDeclare(override val name: TypeId, is: IIs, declareMap: DeclareMap) extends IModuleMember(name)
 final case class IType(typename: TypeId, ofType: IOfType, is: IIs) extends IModuleMember(typename)
 

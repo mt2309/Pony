@@ -40,5 +40,5 @@ package object Common {
     }
   }
 
-  type TypeScope = Map[TypeId, IModuleMember]
+  type ITypeScope = Map[TypeId, IModuleMember]
 }
