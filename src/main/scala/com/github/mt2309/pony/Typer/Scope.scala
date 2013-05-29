@@ -17,6 +17,7 @@ final case class Scope(typeScope: ITypeScope = primScope,
                        filename: Filename = "Primitive") extends NotNull
 {
   def updateScope(id: ID, of: TOfType)(implicit pos: Position): Scope = {
+    println(s"Updating scope with $id oftyp $of")
     if (varScope.contains(id)) {
       throw new VariableShadowingException(s"Variable $id, of type $of shadows variable with type ${this.varScope.get(id)}")
     }

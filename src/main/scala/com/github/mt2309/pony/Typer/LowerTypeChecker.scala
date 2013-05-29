@@ -155,14 +155,18 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
   }
 
   private def checkBlockContent(b: BlockContent)(implicit scope: Scope): (TBlockContent, Scope) = b match {
-    case Return => (TReturn, scope)
-    case Throw => (TThrow, scope)
-    case Break => (TBreak, scope) // TODO: Should we check if we're in a loop here
-    case Continue => (TContinue, scope)
-    case b:Block => (checkBlock(b), scope)
+    case Return => (TReturn -> scope)
+    case Throw => (TThrow -> scope)
+    case Break => (TBreak -> scope) // TODO: Should we check if we're in a loop here
+    case Continue => (TContinue -> scope)
+    case b:Block => checkBlock(b) -> scope
     case v: VarDec => checkVarDec(v)
-    case Match(list, cases) => new TMatch(list.map(checkExpression), cases.map(checkCaseBlock)).setPos(b.pos) -> scope
-    case DoLoop(block, whileExpr) => new TDoLoop(checkBlock(block), checkBooleanExpr(whileExpr)).setPos(b.pos) -> scope
+    case Match(list, cases) => {
+      new TMatch(list.map(checkExpression), cases.map(checkCaseBlock)).setPos(b.pos) -> scope
+    }
+    case DoLoop(block, whileExpr) => {
+      new TDoLoop(checkBlock(block), checkBooleanExpr(whileExpr)).setPos(b.pos) -> scope
+    }
     case WhileLoop(whileExpr, block) => new TWhileLoop(checkBooleanExpr(whileExpr), checkBlock(block)).setPos(b.pos) -> scope
     case ForLoop(forVars, inExpr, block) => {
       val fV = checkForVars(forVars)
@@ -267,7 +271,8 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
       case Ambient(contents, throws, block) => new TAmbient(checkContents(contents), throws, block.map(checkBlock)) -> scope
       case Function(contents, results, throws, block) => {
         val res = checkParams(results)
-        new TFunction(checkContents(contents), res, throws, block.map(checkBlock)) -> scope
+        val sc = if (res.isEmpty) scope else res.last.scope
+        new TFunction(checkContents(contents), res, throws, block.map(checkBlock(_)(sc))) -> scope
       }
       case Message(contents, block) => new TMessage(checkContents(contents), block.map(checkBlock)) -> scope
     }
@@ -299,13 +304,4 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
     case Unique => TUnique
     case ModeExpr(expr) => new TModeExpr(checkExpression(expr))
   }
-
-//  private def bodyLookUp(name: ID, is: IIs)(implicit scope: Scope): BodyContent = {
-//    for (i <- is.list) {
-//      val typeclass = i
-//    }
-//    ???
-//  }
-//
-//  private def bodyLookUp(name: ID, ofType: TOfType)(implicit scope: Scope): BodyContent = ???
 }

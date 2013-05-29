@@ -31,7 +31,7 @@ final case class TActor(n: TypeId, f: TFormalArgs, i:TIs, t: TTypeBody)(implicit
 final case class TTrait(n: TypeId, f: TFormalArgs, i:TIs, t: TTypeBody)(implicit override val scope: Scope)   extends PonyClass(n,f,i,t)
 final case class TObject(n: TypeId, f: TFormalArgs, i:TIs, t: TTypeBody)(implicit override val scope: Scope)  extends PonyClass(n,f,i,t)
 
-final case class TParam(name: ID, ofType: TOfType)
+final case class TParam(name: ID, ofType: TOfType)(implicit val scope: Scope)
 
 final case class TCombinedArgs(formalArgs: TFormalArgs, args: TParams)(implicit val scope: Scope) extends Typer
 final case class TArg(expr: Option[TExpr], ofType: Option[TOfType], assign: Option[TExpr])(implicit val scope: Scope) extends Typer
@@ -159,7 +159,10 @@ final case class TPonyString(s: String)(implicit val scope: Scope) extends TAtom
 }
 
 final case class TPonyID(i: ID)(implicit val scope: Scope) extends TAtom with Typer{
-  def extractOfType = scope.searchID(i)(this.pos)
+  def extractOfType = {
+    println(scope.varScope)
+    scope.searchID(i)(this.pos)
+  }
 }
 
 final case class TPonyTypeId(t: TypeId)(implicit val scope: Scope) extends TAtom with Typer {
