@@ -24,4 +24,6 @@ final class VariableShadowingException(msg: String) extends TyperException(msg)
 final class LambdaInMethCallException(msg: String) extends TyperException(msg)
 final class TypeMismatch(expected: String, got: String) extends TyperException(s"Got $expected, but expected $got")
 
+final class ThisUsedOutsideClassException extends TyperException("This was used outside of a class")
+
 final class TyperInferenceException extends TyperException("Type inference is not enabled or working yet, please annotate with types")

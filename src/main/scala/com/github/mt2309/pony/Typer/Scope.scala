@@ -12,6 +12,7 @@ import com.github.mt2309.pony.AST.{BodyContent, ModuleMember, TypeClass}
 final case class Scope(typeScope: ITypeScope = primScope,
                        imports: CompilationUnits = (new QualifiedCompilationUnits(Map.empty) -> new UnqualifiedCompilationUnits(Set.empty)),
                        varScope: VariableScope = Map.empty, // Could include constants here: PI, E etc?
+                       currentClass: Option[IModuleMember] = None,
                        filename: Filename = "Primitive") extends NotNull
 {
   def updateScope(id: ID, of: TOfType): Scope = {

@@ -14,9 +14,7 @@ final class TopTypes(val modules: Set[(Filename, Option[Module])]) extends TypeC
 
   def topLevelTypes: Set[PreTypedModule] = modules.filter(_._2.isDefined).map(t => topLevelType(t._1, t._2.get))
 
-  private def topLevelType(filename: Filename, module: Module): PreTypedModule = {
-    new TopTypeModule(filename, moduleScope, module).typeCheck
-  }
+  private def topLevelType(filename: Filename, module: Module): PreTypedModule = new TopTypeModule(filename, moduleScope, module).typeCheck.setPos(module.pos)
 }
 
 object TopTypes {

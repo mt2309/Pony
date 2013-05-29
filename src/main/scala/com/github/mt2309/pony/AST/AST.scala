@@ -1,15 +1,14 @@
 package com.github.mt2309.pony.AST
 
 import com.github.mt2309.pony.Common._
+import scala.util.parsing.input.Positional
 
 /**
  * User: mthorpe
  * Date: 26/04/2013
  * Time: 00:16
  */
-final case class PonyPos(line: Int, column: Int)
-
-trait AST extends NotNull
+sealed trait AST extends NotNull with Positional
 
 final case class Module(imports:Set[Use], classes: Map[TypeId, ModuleMember]) extends AST
 
@@ -47,7 +46,7 @@ final case class TypeClass(name: TypeId,
   override def toString: String = if (module.isDefined) name ++ module.get else name
 }
 
-final case class Lambda(mode: Mode, args: Args, result: Option[Params], throws: Boolean, block: Option[Block])(implicit override val fileName: Filename) extends TypeElement with AST
+final case class Lambda(mode: Mode, args: Args, result: Params, throws: Boolean, block: Option[Block])(implicit override val fileName: Filename) extends TypeElement with AST
 
 sealed abstract class Mode extends AST
 object ReadOnly     extends Mode with AST
@@ -70,7 +69,7 @@ final case class Field(id: ID, ofType: OfType, expr: Option[Expr]) extends BodyC
 final case class Delegate(id: ID, ofType: OfType) extends BodyContent(name = id, returnType = ofType) with AST
 final case class Constructor(contents: MethodContent, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with AST
 final case class Ambient(contents: MethodContent, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with AST
-final case class Function(contents: MethodContent, results: Option[Params], throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with AST
+final case class Function(contents: MethodContent, results: Params, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with AST
 final case class Message(contents: MethodContent, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with AST
 
 final case class MethodContent(mode: Mode, id:ID, combinedArgs: CombinedArgs) extends AST

@@ -34,6 +34,7 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
       classes ++ extraScope,
       pre.imports,
       Map.empty,
+      None,
       pre.filename
     )
 
@@ -63,8 +64,8 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
 
   private def pullInTypeElement(elem: TypeElement)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits): ITypeElement = {
     elem match {
-      case PartialType(tp) => new IPartialType(pullInTypeClass(tp))
-      case Lambda(mode, args, result, throws, block) => new ILambda(mode, args, result, throws, block)
+      case PartialType(tp) => new IPartialType(pullInTypeClass(tp)).setPos(tp.pos)
+      case Lambda(mode, args, result, throws, block) => new ILambda(mode, args, result, throws, block).setPos(mode.pos)
       case t:TypeClass => pullInTypeClass(t)
     }
   }
@@ -79,11 +80,11 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
       imp.getOrElse(pullInTypes(scope.getOrElse(clazz.name, throw new TypeClassNotFoundException(s"$clazz not found in file ${clazz.fileName}"))))
     }
 
-    new ITypeClass(modMember, clazz.mode, clazz.formalArgs)
+    new ITypeClass(modMember, clazz.mode, clazz.formalArgs).setPos(clazz.pos)
   }
 
   private def pullInIs(is: Is)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits): IIs = {
-    new IIs(is.list.map(pullInTypeClass))
+    new IIs(is.list.map(pullInTypeClass)).setPos(is.pos)
   }
 
 }
