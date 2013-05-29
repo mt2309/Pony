@@ -146,16 +146,13 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
   }
 
   private def checkBlock(block: Block)(implicit scope: Scope): TBlock = {
-    println(s"blocksize = ${scope.varScope.size}")
     new TBlock(checkBlockContents(block.contents), block.catchBlock.map(checkBlock), block.alwaysBlock.map(checkBlock)).setPos(block.pos)
   }
 
   private def checkBlockContents(list: List[BlockContent])(implicit scope: Scope): List[TBlockContent] = {
-    println(s"Blockcontent size = ${scope.varScope}")
     list match {
       case x :: xs => {
         val ret: (TBlockContent, Scope) = checkBlockContent(x)
-        println(s"Case block size = ${ret._2.varScope}")
         ret._1.setPos(x.pos) :: checkBlockContents(xs)(ret._2)
       }
       case Nil => Nil

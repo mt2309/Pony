@@ -2,7 +2,7 @@ package com.github.mt2309.pony.Typer
 
 import com.github.mt2309.pony.Common._
 import com.github.mt2309.pony.CompilationUnit.{UnqualifiedCompilationUnits, QualifiedCompilationUnits}
-import com.github.mt2309.pony.AST.{BodyContent, ModuleMember, TypeClass}
+import com.github.mt2309.pony.AST._
 import scala.util.parsing.input.Position
 
 /**
@@ -17,17 +17,14 @@ final case class Scope(typeScope: ITypeScope = primScope,
                        filename: Filename = "Primitive") extends NotNull
 {
   def updateScope(id: ID, of: TOfType)(implicit pos: Position): Scope = {
-    println(s"Updating scope with $id of type $of")
     if (varScope.contains(id)) {
       throw new VariableShadowingException(s"Variable $id, of type $of shadows variable with type ${this.varScope.get(id)}")(pos, this)
     }
     val cp: Scope = this.copy(varScope = (this.varScope + (id -> of)))
-    println(s"copy size = ${cp.varScope.size}")
     cp
   }
 
   def updateScope(typeId: TypeId)(implicit pos: Position): Scope = {
-    println(s"Updating scope with new type $typeId")
     if (typeScope.contains(typeId)) {
       throw new TypeShadowingException(s"Type $typeId, shadows type defined at ${this.typeScope(typeId)}")(pos, this)
     }
@@ -60,17 +57,61 @@ final case class Scope(typeScope: ITypeScope = primScope,
   }
 
   def findMethod(id: ID, of: TOfType)(implicit pos: Position): BodyContent = {
-    for (t <- of.typeList) {
-      t match {
-        case p: TPartialType => search(p.name)
-        case t: TTypeClass => search(t)
-        case l: TLambda => throw new LambdaInMethCallException(s"Lambda found in method lookup for for id $id")(pos, this)
-        case TPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")(pos, this)
+    if (of.typeList.size == 0) throw new UntypedListException(id)(pos, this)
+    val clazzList: Set[IModuleMember] = for (t <- of.typeList) yield t match {
+      case p: TPartialType => search(p.name)
+      case t: TTypeClass => search(t)
+      case l: TLambda => throw new LambdaInMethCallException(s"Lambda found in method lookup for for id $id")(pos, this)
+      case TPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")(pos, this)
+    }
+
+    val methList: Set[BodyContent] = for (c <- clazzList) yield c match {
+      case IPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")(pos, this)
+      case EmptyType(name) => throw new EmptyTypeFound(s"Empty type $name found where it should not be")(pos, this)
+      case IActor(name, _, is, t) => {
+        val body = t.body.get(id)
+        body.getOrElse(findMethod(id, is)) //throw new MethodNotFoundException(id, name)(pos, this))
+      }
+      case IObject(_, _, is, t) => {
+        val body = t.body.get(id)
+        body.getOrElse(findMethod(id, is))
+      }
+      case ITrait(_, _, is, t) => {
+        val body = t.body.get(id)
+        body.getOrElse(findMethod(id, is))
+      }
+      case IDeclare(_, is, map) => {
+        val declareID: ID = map.map.find(_.to == id).map(_.from).getOrElse(id)
+        findMethod(declareID, is)
+      }
+      case IType(_, o, is) => {
+        val oBody = findMethod(id, o)
+        val body = findMethod(id, is)
+        ???
       }
     }
 
-    ???
+    val sizes = for (m <- methList) yield (m -> methodExtract(m))
+    val fst = sizes.head
+    for (s <- sizes) {
+      if (s._2._1 != fst._2._1 || s._2._2 != fst._2._2)
+        throw new ArgumentMismatchException(s._1)(pos, this)
+    }
+
+    methList.head
   }
+
+  // Length of inputs args, length of output args
+  def methodExtract(b: BodyContent): (Int, Int) = b match {
+    case Field(name, ofType, expr) => (0, 1)
+    case Delegate(name, ofType) => (0, 1)
+    case Constructor(contents, throws, block) => (contents.combinedArgs.args.length, 1)
+    case Ambient(contents, throws, block) => (contents.combinedArgs.args.length, 0)
+    case Function(contents, results, throws, block) => (contents.combinedArgs.args.length, results.length)
+    case Message(contents, block) => (contents.combinedArgs.args.length, 0)
+  }
+
+  def findMethod(id: ID, is: IOfType): BodyContent = ???
 
   def findMethod(id: ID, is: IIs): BodyContent = {
     ???
