@@ -19,15 +19,17 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
   def typeCheck: Set[ITypedModule] = modules.map(m => pullInTypesModule(m))
 
   private def pullInTypesModule(pre: PreTypedModule): ITypedModule = {
-    val classes: Map[TypeId, IModuleMember] = pre.classes.map(c => c._1 -> pullInTypes(c._2)(pre.scope, pre.imports))
+    val classes: Map[TypeId, IModuleMember] = pre.classes.map(c => c._1 -> pullInTypes(c._2)(pre.scope, pre.imports, pre.filename))
 
     val notInThisModule = modules.filterNot(b => (b.filename == pre.filename))
     val more = notInThisModule.map(t => t.scope).flatten
 
     val extraScope: Map[TypeId, IModuleMember] = {
-      more.filter(_._2.fileName != "Primitive value").map(t => t._1 -> pullInTypes(t._2)(
-        modules.find(b => b.filename == t._2.fileName).get.scope, modules.find(_.filename == t._2.fileName).get.imports)
-      ).toMap
+      more.filter(_._2.fileName != primitiveFilename).map(t => t._1 -> pullInTypes(t._2)(
+        modules.find(b => b.filename == t._2.fileName).get.scope,
+        modules.find(_.filename == t._2.fileName).get.imports,
+        t._2.fileName
+      )).toMap
     }
 
     val scope = new Scope(
@@ -41,7 +43,7 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
     new ITypedModule(pre.imports, classes)(scope)
   }
 
-  private def pullInTypes(m: ModuleMember)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits): IModuleMember = {
+  private def pullInTypes(m: ModuleMember)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits, filename: Filename): IModuleMember = {
     val i = ITypeChecker.lookUp(m)
 
     val res = i.getOrElse(m match {
@@ -58,11 +60,11 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
     res
   }
 
-  private def pullInOf(of: OfType)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits): IOfType = {
+  private def pullInOf(of: OfType)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits, filename: Filename): IOfType = {
     new IOfType(of.typeList.map(pullInTypeElement))
   }
 
-  private def pullInTypeElement(elem: TypeElement)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits): ITypeElement = {
+  private def pullInTypeElement(elem: TypeElement)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits, filename: Filename): ITypeElement = {
     elem match {
       case PartialType(tp) => new IPartialType(pullInTypeClass(tp)).setPos(tp.pos)
       case Lambda(mode, args, result, throws, block) => new ILambda(mode, args, result, throws, block).setPos(mode.pos)
@@ -70,20 +72,20 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
     }
   }
 
-  private def pullInFormal(f: FormalArgs)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits): IFormalArgs = {
+  private def pullInFormal(f: FormalArgs)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits, filename: Filename): IFormalArgs = {
     f.map(pullInTypeClass)
   }
 
-  private def pullInTypeClass(clazz: TypeClass)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits): ITypeClass = {
+  private def pullInTypeClass(clazz: TypeClass)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits, filename: Filename): ITypeClass = {
     val modMember: IModuleMember = {
       val imp = imports.searchType(clazz)
-      imp.getOrElse(pullInTypes(scope.getOrElse(clazz.name, throw new TypeClassNotFoundException(s"$clazz not found in file ${clazz.fileName}")(clazz.pos))))
+      imp.getOrElse(pullInTypes(scope.getOrElse(clazz.name, throw new TypeClassNotFoundException(s"$clazz not found in file ${clazz.fileName}")(clazz.pos,new Scope(filename = filename)))))
     }
 
     new ITypeClass(modMember, clazz.mode, clazz.formalArgs).setPos(clazz.pos)
   }
 
-  private def pullInIs(is: Is)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits): IIs = {
+  private def pullInIs(is: Is)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits, filename: Filename): IIs = {
     new IIs(is.list.map(pullInTypeClass)).setPos(is.pos)
   }
 

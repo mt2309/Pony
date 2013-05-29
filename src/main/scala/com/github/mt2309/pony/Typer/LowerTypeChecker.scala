@@ -20,12 +20,13 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
   }
 
   private def checkClass(moduleMember: IModuleMember)(implicit scope: Scope): TModuleMember = moduleMember match {
-    case IPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found where it should not be")(moduleMember.pos)
+    case IPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found where it should not be")(moduleMember.pos, scope)
     case d:IDeclare => new TDeclare(d.name, checkIs(d.is), checkDeclareMap(d.declareMap, d.is)).setPos(d.pos)
     case t:IType => new TType(t.typename, checkOf(t.ofType), checkIs(t.is))
     case c:IActor => new TActor(  c.n, checkIFormal(c.f), checkIs(c.i), checkTypeBody(c.t)).setPos(c.pos)
     case c:IObject => new TObject(c.n, checkIFormal(c.f), checkIs(c.i), checkTypeBody(c.t)).setPos(c.pos)
     case c:ITrait => new TTrait(  c.n, checkIFormal(c.f), checkIs(c.i), checkTypeBody(c.t)).setPos(c.pos)
+    case EmptyType(name) => throw new EmptyTypeFound(s"Empty type $name found where it should not be")(moduleMember.pos, scope)
   }
 
   private def checkTypeClass(typeclass: ITypeClass)(implicit scope: Scope): TTypeClass = {
@@ -95,7 +96,7 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
     if (ex.extractOfType.typeList forall (ofType.typeList.contains))
       ex
     else
-      throw new AssignmentException(s"Type error, type from assign does not match lvalue type")(expr.pos)
+      throw new AssignmentException(s"Type error, type from assign does not match lvalue type")(expr.pos, scope)
   }
 
   private def checkExpression(expr: Expr)(implicit scope: Scope): TExpr = {
@@ -198,7 +199,7 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
   }
 
   def checkVarDec(nVar: VarDec)(implicit scope: Scope): (TVarDec, Scope) = {
-    val of = nVar.ofType.map(checkOf).getOrElse(throw new TyperInferenceException()(nVar.pos))
+    val of = nVar.ofType.map(checkOf).getOrElse(throw new TyperInferenceException()(nVar.pos, scope))
     new TVarDec(nVar.id, of, nVar.assign.map(checkExpression)) -> scope.updateScope(nVar.id, of)(nVar.pos)
   }
 
@@ -207,7 +208,7 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
     if (ex.extractOfType eq boolOfType)
       ex
     else
-      throw new TypeMismatch(ex.extractOfType.toString, boolOfType.toString)(expr.pos)
+      throw new TypeMismatch(ex.extractOfType.toString, boolOfType.toString)(expr.pos, scope)
   }
 
   private def checkCaseBlock(c: CaseBlock)(implicit scope: Scope): TCaseBlock = {
@@ -238,7 +239,7 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
   }
 
   private def checkForVar(forVar: ForVar)(implicit scope: Scope): (TForVar, Scope) = {
-    val of = checkOf(forVar.ofType.getOrElse(throw new TyperInferenceException()(forVar.pos)))
+    val of = checkOf(forVar.ofType.getOrElse(throw new TyperInferenceException()(forVar.pos, scope)))
     new TForVar(forVar.id, of) -> scope.updateScope(forVar.id, of)(forVar.pos)
   }
 
@@ -267,14 +268,24 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
         val of = checkOf(ofType)
         new TDelegate(name, of) -> scope.updateScope(name, of)
       }
-      case Constructor(contents, throws, block) => new TConstructor(checkContents(contents), throws, block.map(checkBlock)) -> scope
-      case Ambient(contents, throws, block) => new TAmbient(checkContents(contents), throws, block.map(checkBlock)) -> scope
+      case Constructor(contents, throws, block) => {
+        val con = checkContents(contents)
+        new TConstructor(con._1, throws, block.map(checkBlock(_)(con._2))) -> scope
+      }
+      case Ambient(contents, throws, block) => {
+        val con = checkContents(contents)
+        new TAmbient(con._1, throws, block.map(checkBlock)) -> scope
+      }
       case Function(contents, results, throws, block) => {
         val res = checkParams(results)
+        val con = checkContents(contents)
         val sc = if (res.isEmpty) scope else res.last.scope
-        new TFunction(checkContents(contents), res, throws, block.map(checkBlock(_)(sc))) -> scope
+        new TFunction(con._1, res, throws, block.map(checkBlock(_)(sc))) -> scope
       }
-      case Message(contents, block) => new TMessage(checkContents(contents), block.map(checkBlock)) -> scope
+      case Message(contents, block) => {
+        val con = checkContents(contents)
+        new TMessage(con._1, block.map(checkBlock)) -> scope
+      }
     }
   }
 
@@ -292,9 +303,21 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
     new TParam(p.name, of) -> scope.updateScope(p.name, of)(p.pos)
   }
 
-  private def checkContents(c: MethodContent)(implicit scope: Scope): TMethodContent = {
-    val comb = new TCombinedArgs(checkFormal(c.combinedArgs.formalArgs), checkParams(c.combinedArgs.args))
-    new TMethodContent(checkMode(c.mode), c.id, comb)
+  private def checkContents(c: MethodContent)(implicit scope: Scope): (TMethodContent, Scope) = {
+    val formalScope = checkFormalParams(c.combinedArgs.formalArgs, c.pos)
+    val param = checkParams(c.combinedArgs.args)(formalScope)
+    val sc = if (param.isEmpty) formalScope else param.last.scope
+    val comb = new TCombinedArgs(c.combinedArgs.formalArgs, param)(sc)
+    new TMethodContent(checkMode(c.mode)(sc), c.id, comb) -> sc
+  }
+
+  private def checkFormalParams(p: FormalParams, pos: Position)(implicit scope: Scope): Scope = {
+    var sc = scope
+    for (typeId <- p) {
+      sc = sc.updateScope(typeId)(pos)
+    }
+
+    sc
   }
 
   private def checkMode(mode: Mode)(implicit scope: Scope): TMode = mode match {

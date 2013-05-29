@@ -22,6 +22,8 @@ package object Common {
   type Filename = String
   type FileContents = String
 
+  val primitiveFilename: Filename = "Primitive value"
+
   // Formal arguments are (optional) lists of typeIds.
   // Later we could extend this to expressions for value-dependent types
   // But that's a bit beyond the current typeScope of things.
@@ -30,6 +32,7 @@ package object Common {
   // and args are
   type Args = List[Arg]
   type Params = List[Param]
+  type FormalParams = List[TypeId]
 
   type CompilationUnits = (QualifiedCompilationUnits, UnqualifiedCompilationUnits)
 

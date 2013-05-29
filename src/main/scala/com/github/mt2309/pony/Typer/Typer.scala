@@ -2,7 +2,7 @@ package com.github.mt2309.pony.Typer
 
 import com.github.mt2309.pony.Common._
 import com.github.mt2309.pony.AST._
-import scala.util.parsing.input.{Position, Positional}
+import scala.util.parsing.input.Positional
 
 /**
  * User: mthorpe
@@ -33,7 +33,7 @@ final case class TObject(n: TypeId, f: TFormalArgs, i:TIs, t: TTypeBody)(implici
 
 final case class TParam(name: ID, ofType: TOfType)(implicit val scope: Scope)
 
-final case class TCombinedArgs(formalArgs: TFormalArgs, args: TParams)(implicit val scope: Scope) extends Typer
+final case class TCombinedArgs(formalArgs: FormalParams, args: TParams)(implicit val scope: Scope) extends Typer
 final case class TArg(expr: Option[TExpr], ofType: Option[TOfType], assign: Option[TExpr])(implicit val scope: Scope) extends Typer
 
 sealed trait TTypeElement extends Typer
@@ -75,6 +75,15 @@ final case class TExpr(unary: TUnary, operator: List[(Operator, TUnary)])(implic
     else
       numericOfType
   }
+
+  private def opList: TOfType = {
+    operator.last._1 match {
+      case t: NumericOp => numericOfType
+      case t: BooleanOp => boolOfType
+      case t: NumericBooleanOp => new TOfType(numericOfType.typeList ++ boolOfType.typeList)
+      case t: TypeOp => ???
+    }
+  }
 }
 
 trait TBlockContent extends Typer
@@ -106,18 +115,23 @@ final case class TLValueVar(nVar: TVarDec)(implicit override val scope: Scope) e
 final case class TLValueCommand(command: TCommand)(implicit override val scope: Scope) extends TLValue
 
 sealed abstract class TUnary(unaryOps: List[UnaryOp])(implicit val scope: Scope) extends Typer {
-  def extractOfType(implicit scope: Scope): TOfType
+  def extractOfType: TOfType
 }
 
 final case class TUnaryCommand(un: List[UnaryOp], command: TCommand)(implicit override val scope: Scope) extends TUnary(un) {
-  def extractOfType(implicit scope: Scope): TOfType = ???
+  def extractOfType: TOfType = command.extractOfType
 }
 
 final case class TUnaryLambda(un: List[UnaryOp], lambda: TLambda)(implicit override val scope: Scope) extends TUnary(un) {
-  def extractOfType(implicit scope: Scope): TOfType = ???
+  def extractOfType: TOfType = ???
 }
 
-final case class TCommand(first: TFirstCommand, second: Option[TSecondCommand])(implicit val scope: Scope) extends Typer
+final case class TCommand(first: TFirstCommand, second: Option[TSecondCommand])(implicit val scope: Scope) extends Typer {
+  def extractOfType: TOfType = {
+    if (second.isEmpty) first.extractOfType
+    else ???
+  }
+}
 
 sealed abstract class TFirstCommand extends Typer {
   def extractOfType: TOfType
@@ -133,7 +147,7 @@ sealed abstract class TAtom extends TFirstCommand with Typer
 
 final class TThis(implicit val scope: Scope) extends TAtom{
   def extractOfType: TOfType = {
-    val cur = scope.currentClass.getOrElse(throw new ThisUsedOutsideClassException()(this.pos))
+    val cur = scope.currentClass.getOrElse(throw new ThisUsedOutsideClassException()(this.pos, scope))
     new TOfType(Set(new TTypeClass(cur)))
   }
 }

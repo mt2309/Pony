@@ -17,19 +17,30 @@ final case class Scope(typeScope: ITypeScope = primScope,
                        filename: Filename = "Primitive") extends NotNull
 {
   def updateScope(id: ID, of: TOfType)(implicit pos: Position): Scope = {
-    println(s"Updating scope with $id oftyp $of")
+    println(s"Updating scope with $id of type $of")
     if (varScope.contains(id)) {
-      throw new VariableShadowingException(s"Variable $id, of type $of shadows variable with type ${this.varScope.get(id)}")
+      throw new VariableShadowingException(s"Variable $id, of type $of shadows variable with type ${this.varScope.get(id)}")(pos, this)
     }
     this.copy(varScope = this.varScope + (id -> of))
   }
+
+  def updateScope(typeId: TypeId)(implicit pos: Position): Scope = {
+    println(s"Updating scope with new type $typeId")
+    if (typeScope.contains(typeId)) {
+      throw new TypeShadowingException(s"Type $typeId, shadows type defined at ${this.typeScope(typeId)}")(pos, this)
+    }
+    else
+      this.copy(typeScope = typeScope + (typeId -> new EmptyType(typeId)(filename).setPos(pos)))
+  }
+
+  def mergeScope(that: Scope): Scope = this.copy(varScope = varScope ++ that.varScope)
 
 
   def search(t: TypeClass): IModuleMember = {
     val p: Option[IModuleMember] = primScope.get(t.name)
     val i: Option[IModuleMember] = if (p.isDefined) p else imports.searchType(t)
 
-    i.getOrElse(typeScope.getOrElse(t.name, throw new TypeClassNotFoundException(s"$t not found in ${t.fileName}")(t.pos)))
+    i.getOrElse(typeScope.getOrElse(t.name, throw new TypeClassNotFoundException(s"$t not found in ${t.fileName}")(t.pos, this)))
   }
 
   def search(t: TTypeClass): IModuleMember = t.moduleMember
@@ -49,8 +60,8 @@ final case class Scope(typeScope: ITypeScope = primScope,
       t match {
         case p: TPartialType => search(p.name)
         case t: TTypeClass => search(t)
-        case l: TLambda => throw new LambdaInMethCallException(s"Lambda found in method lookup for for id $id")
-        case TPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")
+        case l: TLambda => throw new LambdaInMethCallException(s"Lambda found in method lookup for for id $id")(pos, this)
+        case TPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")(pos, this)
       }
     }
 
@@ -63,5 +74,5 @@ final case class Scope(typeScope: ITypeScope = primScope,
 
   def search(t: TypeId)(implicit pos: Position): IModuleMember = typeScope.getOrElse(t, throw new TypeNotFoundException(t))
 
-  def searchID(i: ID)(implicit pos: Position): TOfType = varScope.getOrElse(i, throw new VariableNotFoundException(s"$i not found in $filename"))
+  def searchID(i: ID)(implicit pos: Position): TOfType = varScope.getOrElse(i, throw new VariableNotFoundException(s"$i not found in $filename")(pos, this))
 }

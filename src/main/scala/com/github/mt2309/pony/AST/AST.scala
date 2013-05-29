@@ -1,14 +1,21 @@
 package com.github.mt2309.pony.AST
 
 import com.github.mt2309.pony.Common._
-import scala.util.parsing.input.Positional
+import scala.util.parsing.input.{Position, Positional}
+
+import scala.language.implicitConversions
 
 /**
  * User: mthorpe
  * Date: 26/04/2013
  * Time: 00:16
  */
-sealed trait AST extends NotNull with Positional
+
+trait PonyPos extends Positional
+
+sealed trait AST extends NotNull with PonyPos {
+  implicit def toPos: Position = this.pos
+}
 
 final case class Module(imports:Set[Use], classes: Map[TypeId, ModuleMember]) extends AST
 
@@ -16,7 +23,7 @@ final case class Use(toType: Option[TypeId], importName: String) extends AST
 
 sealed abstract class ModuleMember(val typeName: TypeId)(implicit val fileName: Filename) extends AST
 
-final case class Primitive(name: TypeId) extends ModuleMember(name)("Primitive value") with AST
+final case class Primitive(name: TypeId) extends ModuleMember(name)(primitiveFilename) with AST
 final case class Declare(name: TypeId, is: Is, declareMap: DeclareMap)(implicit val filename: Filename) extends ModuleMember(name) with AST
 final case class Type(n: TypeId, ofType: OfType, is: Is)(implicit val filename: Filename) extends ModuleMember(n) with AST
 
@@ -33,7 +40,7 @@ final case class Object
 
 final case class Param(name: ID, ofType: OfType) extends AST
 
-final case class CombinedArgs(formalArgs: FormalArgs, args: Params) extends AST
+final case class CombinedArgs(formalArgs: FormalParams, args: Params) extends AST
 final case class Arg(expr: Option[Expr], ofType: Option[OfType], assign: Option[Expr]) extends AST
 
 sealed abstract class TypeElement(implicit val fileName: Filename) extends AST
@@ -106,23 +113,28 @@ final case class LValueCommand(command: Command) extends LValue with AST
 
 // "+" | "-" | "*" | "/" | "%" | "<<" | ">>" | ">" | "<" | ">=" | "<=" | "!=" | "-" | "#=" | "~=" | "|" | "^" | "&"
 sealed abstract class Operator extends AST
-object PLUS extends Operator with AST
-object MINUS extends Operator with AST
-object TIMES extends Operator with AST
-object DIVIDE extends Operator with AST
-object MOD extends Operator with AST
-object LSHIFT extends Operator with AST
-object RSHIFT extends Operator with AST
-object GT extends Operator with AST
-object LT extends Operator with AST
-object GTE extends Operator with AST
-object LTE extends Operator with AST
-object NE extends Operator with AST
-object STEQ extends Operator with AST
-object NSTEQ extends Operator with AST
-object OR extends Operator with AST
-object AND extends Operator with AST
-object XOR extends Operator with AST
+sealed abstract class NumericOp extends Operator
+sealed abstract class BooleanOp extends Operator
+sealed abstract class NumericBooleanOp extends Operator
+sealed abstract class TypeOp extends Operator
+
+final class Plus    extends NumericOp with AST
+final class Minus   extends NumericOp with AST
+final class Times   extends NumericOp with AST
+final class Divide  extends NumericOp with AST
+final class Mod     extends NumericOp with AST
+final class LShift  extends NumericOp with AST
+final class RShift  extends NumericOp with AST
+final class GT      extends BooleanOp with AST
+final class LT      extends BooleanOp with AST
+final class GTE     extends BooleanOp with AST
+final class LTE     extends BooleanOp with AST
+final class NE      extends BooleanOp with AST
+final class STEq    extends TypeOp with AST
+final class NSTeq   extends TypeOp with AST
+final class Or      extends NumericBooleanOp with AST
+final class And     extends NumericBooleanOp with AST
+final class XOr     extends NumericBooleanOp with AST
 
 sealed abstract class Unary(unaryOps: List[UnaryOp]) extends AST
 final case class UnaryCommand(un: List[UnaryOp], command: Command) extends Unary(un) with AST

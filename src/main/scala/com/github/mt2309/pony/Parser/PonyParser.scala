@@ -118,7 +118,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
 
   private def modeId: Parser[(Option[Mode], ID)] = (mode?) ~ id ^^ {s => s._1 -> s._2}
   private def combinedArgs: Parser[CombinedArgs] = positioned {
-    formalArgs ~ params ^^ {s => new CombinedArgs(s._1.getOrElse(List.empty),s._2)}
+    formalParams ~ params ^^ {s => new CombinedArgs(s._1,s._2)}
   }
   private def results: Parser[Params] = (("->" ~> params)?) ^^ {_.getOrElse(List.empty)}
 
@@ -161,6 +161,8 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   private def isOptBlock: Parser[Option[Block]] = (("is" ~> block)?)
 
   private def throws: Parser[Boolean] = ("throws"?) ^^ {_.isDefined}
+
+  private def formalParams: Parser[List[TypeId]] = (("[" ~> parserList(typeId, ",") <~ "]")?) ^^ {_.getOrElse(List.empty)}
 
   private def formalArgs: Parser[Option[List[TypeClass]]] = (("[" ~> parserList(typeclass, ",") <~ "]")?)
 
@@ -265,23 +267,23 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   private def operator: Parser[Operator] = positioned {
     plus | minus | times | divide | mod | lshift | rshift | gt | lt | gte | lte | ne | steq | nsteq | or | xor | and
   }
-  private def plus: Parser[Operator] = "+" ^^ {s => PLUS}
-  private def minus: Parser[Operator] = "-" ^^ {s => MINUS}
-  private def times: Parser[Operator] = "*" ^^ {s => TIMES}
-  private def divide: Parser[Operator] = "/" ^^ {s => DIVIDE}
-  private def mod: Parser[Operator] = "%" ^^ {s => MOD}
-  private def lshift: Parser[Operator] = "<<" ^^ {s => LSHIFT}
-  private def rshift: Parser[Operator] = ">>" ^^ {s => RSHIFT}
-  private def gt: Parser[Operator] = ">" ^^ {s => GT}
-  private def lt: Parser[Operator] = "<" ^^ {s => LT}
-  private def gte: Parser[Operator] = ">=" ^^ {s => GTE}
-  private def lte: Parser[Operator] = "<=" ^^ {s => LTE}
-  private def ne: Parser[Operator] = "!=" ^^ {s => NE}
-  private def steq: Parser[Operator] = "#=" ^^ {s => STEQ}
-  private def nsteq: Parser[Operator] = "~=" ^^ {s => NSTEQ}
-  private def or: Parser[Operator] = "|" ^^ {s => OR}
-  private def xor: Parser[Operator] = "^" ^^ {s => XOR}
-  private def and: Parser[Operator] = "&" ^^ {s => AND}
+  private def plus: Parser[Operator] = "+" ^^ {s => new Plus}
+  private def minus: Parser[Operator] = "-" ^^ {s => new Minus}
+  private def times: Parser[Operator] = "*" ^^ {s => new Times}
+  private def divide: Parser[Operator] = "/" ^^ {s => new Divide}
+  private def mod: Parser[Operator] = "%" ^^ {s => new Mod}
+  private def lshift: Parser[Operator] = "<<" ^^ {s => new LShift}
+  private def rshift: Parser[Operator] = ">>" ^^ {s => new RShift}
+  private def gt: Parser[Operator] = ">" ^^ {s => new GT}
+  private def lt: Parser[Operator] = "<" ^^ {s => new LT}
+  private def gte: Parser[Operator] = ">=" ^^ {s => new GTE}
+  private def lte: Parser[Operator] = "<=" ^^ {s => new LTE}
+  private def ne: Parser[Operator] = "!=" ^^ {s => new NE}
+  private def steq: Parser[Operator] = "#=" ^^ {s => new STEq}
+  private def nsteq: Parser[Operator] = "~=" ^^ {s => new NSTeq}
+  private def or: Parser[Operator] = "|" ^^ {s => new Or}
+  private def xor: Parser[Operator] = "^" ^^ {s => new XOr}
+  private def and: Parser[Operator] = "&" ^^ {s => new And}
 
   // Unary operators
   private def unary: Parser[Unary] = positioned {

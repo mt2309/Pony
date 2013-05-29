@@ -14,19 +14,26 @@ sealed trait ITyper extends NotNull with Positional
 
 final case class ITypedModule(imports: CompilationUnits, types: Map[TypeId, IModuleMember])(implicit val scope: Scope) extends ITyper
 
-sealed abstract class IModuleMember(val name: TypeId) extends ITyper
+sealed abstract class IModuleMember(val name: TypeId)(implicit val filename: Filename) extends ITyper
 
-final case class IPrimitive(typename: TypeId) extends IModuleMember(typename) {
+final case class IPrimitive(typename: TypeId) extends IModuleMember(typename)(primitiveFilename) {
   def toTPrim:TPrimitive = new TPrimitive(typename)(new Scope)
 }
 
-final case class IDeclare(override val name: TypeId, is: IIs, declareMap: DeclareMap) extends IModuleMember(name)
-final case class IType(typename: TypeId, ofType: IOfType, is: IIs) extends IModuleMember(typename)
+final case class EmptyType(typename: TypeId)(implicit override val filename: Filename) extends IModuleMember(typename)
 
-sealed abstract class IPonyClass(val na: TypeId, val formalArgs: IFormalArgs, val is:IIs, val typeBody: TypeBody) extends IModuleMember(na)
-final case class IActor(n: TypeId, f: IFormalArgs, i:IIs, t: TypeBody)   extends IPonyClass(n,f,i,t)
-final case class ITrait(n: TypeId, f: IFormalArgs, i:IIs, t: TypeBody)   extends IPonyClass(n,f,i,t)
-final case class IObject(n: TypeId, f: IFormalArgs, i:IIs, t: TypeBody)  extends IPonyClass(n,f,i,t)
+final case class IDeclare(override val name: TypeId, is: IIs, declareMap: DeclareMap)(implicit override val filename: Filename) extends IModuleMember(name)
+final case class IType(typename: TypeId, ofType: IOfType, is: IIs)(implicit override val filename: Filename) extends IModuleMember(typename)
+
+sealed abstract class IPonyClass(val na: TypeId, val formalArgs: IFormalArgs, val is:IIs, val typeBody: TypeBody)
+                                (implicit override val filename: Filename) extends IModuleMember(na)
+
+final case class IActor(n: TypeId, f: IFormalArgs, i:IIs, t: TypeBody)
+                       (implicit override val filename: Filename) extends IPonyClass(n,f,i,t)
+final case class ITrait(n: TypeId, f: IFormalArgs, i:IIs, t: TypeBody)
+                       (implicit override val filename: Filename) extends IPonyClass(n,f,i,t)
+final case class IObject(n: TypeId, f: IFormalArgs, i:IIs, t: TypeBody)
+                        (implicit override val filename: Filename) extends IPonyClass(n,f,i,t)
 
 sealed trait ITypeElement extends ITyper
 
