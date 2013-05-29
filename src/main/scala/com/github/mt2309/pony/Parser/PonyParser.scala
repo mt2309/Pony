@@ -130,7 +130,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
     modeId ~ combinedArgs ^^ {s => new MethodContent(s._1._1.getOrElse(ReadOnly), s._1._2, s._2)}
   }
 
-  private def OptBlock: Parser[Option[Block]] = (NoneBlock | SomeBlock) ^^ {s => s}
+  private def OptBlock: Parser[Option[Block]] = (NoneBlock | SomeBlock)
   private def SomeBlock: Parser[Option[Block]] = block ^^ {Some(_)}
   private def NoneBlock: Parser[Option[Block]] = ";" ^^ {s => None}
 
@@ -216,10 +216,10 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   }
 
   private def doLoop: Parser[BlockContent] = positioned {
-    ("do" ~> block) ~ ("while" ~> expr) ^^ {s => new DoLoop(s._1, s._2)}
+    ("do" ~> block) ~ ("while" ~> bracketedExpr) ^^ {s => new DoLoop(s._1, s._2)}
   }
   private def whileLoop: Parser[BlockContent] = positioned {
-    "while" ~> expr ~ block ^^ {s => new WhileLoop(s._1, s._2)}
+    "while" ~> bracketedExpr ~ block ^^ {s => new WhileLoop(s._1, s._2)}
   }
   private def forLoop: Parser[BlockContent] = positioned {
     ("for" ~> parserList(forVar, ",")) ~ ("in" ~> expr ~ block) ^^ {s => new ForLoop(s._1, s._2._1, s._2._2)}
@@ -233,7 +233,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
     caseIf | caseVarList
   }
   private def caseIf: Parser[CaseSubBlock] = positioned {
-    "if" ~> expr ^^ {new CaseIf(_)}
+    "if" ~> bracketedExpr ^^ {new CaseIf(_)}
   }
   private def caseVarList: Parser[CaseSubBlock] = positioned {
     parserList(casevar, ",") ^^ {new CaseVarList(_)}
@@ -249,10 +249,12 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
 
   // Something about this seems off, might cause problems with conditionals
   private def conditional: Parser[BlockContent] = positioned{
-    ("if" ~> expr ~ block) ~ (("else if" ~> expr ~ block)*) ~ (("else" ~> block)?) ^^ {
+    ("if" ~> bracketedExpr ~ block) ~ (("else if" ~> bracketedExpr ~ block)*) ~ (("else" ~> block)?) ^^ {
       s => new Conditional((s._1._1._1 -> s._1._1._2) :: s._1._2.map(x => x._1 -> x._2), s._2)
     }
   }
+
+  private def bracketedExpr: Parser[Expr] = positioned("(" ~> expr <~ ")")
 
   private def args: Parser[List[Arg]] = "(" ~> parserList(arg, ",") <~ ")"
   private def arg: Parser[Arg] = positioned {
@@ -289,9 +291,11 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   private def unary: Parser[Unary] = positioned {
     unaryLambda | unaryCommand
   }
+
   private def unaryLambda: Parser[Unary] = positioned {
     unaryOp ~ lambda ^^ {s => new UnaryLambda(s._1, s._2)}
   }
+
   private def unaryCommand: Parser[Unary] = positioned {
     unaryOp ~ command ^^ {s => new UnaryCommand(s._1, s._2)}
   }
@@ -300,9 +304,11 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   private def partial: Parser[UnaryOp] = positioned {
     "\\" ^^ {s => PARTIAL}
   }
+
   private def unaryMinus: Parser[UnaryOp] = positioned {
     "-" ^^ {s => UNARY_MINUS}
   }
+
   private def unaryBang: Parser[UnaryOp] = positioned {
     "!" ^^ {s => UNARY_BANG}
   }
