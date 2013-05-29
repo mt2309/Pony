@@ -35,7 +35,7 @@ package object Common {
 
   implicit class ImplicitCompilationOps(val c: CompilationUnits) {
     def searchType(t: TypeClass): Option[IModuleMember] = t.module match {
-      case Some(module) => c._1.lookUpType(t.name, module)
+      case Some(module) => c._1.lookUpType(t.name, module)(t.pos)
       case None => c._2.lookUpType(t.name)
     }
   }

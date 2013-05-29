@@ -2,7 +2,7 @@ package com.github.mt2309.pony.Typer
 
 import com.github.mt2309.pony.Common._
 import com.github.mt2309.pony.AST._
-import scala.util.parsing.input.Positional
+import scala.util.parsing.input.{Position, Positional}
 
 /**
  * User: mthorpe
@@ -133,7 +133,7 @@ sealed abstract class TAtom extends TFirstCommand with Typer
 
 final class TThis(implicit val scope: Scope) extends TAtom{
   def extractOfType: TOfType = {
-    val cur = scope.currentClass.getOrElse(throw new ThisUsedOutsideClassException)
+    val cur = scope.currentClass.getOrElse(throw new ThisUsedOutsideClassException()(this.pos))
     new TOfType(Set(new TTypeClass(cur)))
   }
 }
@@ -159,11 +159,11 @@ final case class TPonyString(s: String)(implicit val scope: Scope) extends TAtom
 }
 
 final case class TPonyID(i: ID)(implicit val scope: Scope) extends TAtom with Typer{
-  def extractOfType = scope.searchID(i)
+  def extractOfType = scope.searchID(i)(this.pos)
 }
 
 final case class TPonyTypeId(t: TypeId)(implicit val scope: Scope) extends TAtom with Typer {
-  def extractOfType:TOfType = new TOfType(Set(new TTypeClass(scope.search(t))))
+  def extractOfType:TOfType = new TOfType(Set(new TTypeClass(scope.search(t)(this.pos))))
 }
 
 

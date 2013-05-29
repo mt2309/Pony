@@ -3,6 +3,7 @@ package com.github.mt2309.pony.Typer
 import com.github.mt2309.pony.Common._
 import com.github.mt2309.pony.CompilationUnit.{UnqualifiedCompilationUnits, QualifiedCompilationUnits}
 import com.github.mt2309.pony.AST.{BodyContent, ModuleMember, TypeClass}
+import scala.util.parsing.input.Position
 
 /**
  * User: mthorpe
@@ -15,7 +16,7 @@ final case class Scope(typeScope: ITypeScope = primScope,
                        currentClass: Option[IModuleMember] = None,
                        filename: Filename = "Primitive") extends NotNull
 {
-  def updateScope(id: ID, of: TOfType): Scope = {
+  def updateScope(id: ID, of: TOfType)(implicit pos: Position): Scope = {
     if (varScope.contains(id)) {
       throw new VariableShadowingException(s"Variable $id, of type $of shadows variable with type ${this.varScope.get(id)}")
     }
@@ -27,14 +28,14 @@ final case class Scope(typeScope: ITypeScope = primScope,
     val p: Option[IModuleMember] = primScope.get(t.name)
     val i: Option[IModuleMember] = if (p.isDefined) p else imports.searchType(t)
 
-    i.getOrElse(typeScope.getOrElse(t.name, throw new TypeClassNotFoundException(s"$t not found in ${t.fileName}")))
+    i.getOrElse(typeScope.getOrElse(t.name, throw new TypeClassNotFoundException(s"$t not found in ${t.fileName}")(t.pos)))
   }
 
   def search(t: TTypeClass): IModuleMember = t.moduleMember
 
-  def search(m: ModuleMember): IModuleMember = search(m.typeName)
+  def search(m: ModuleMember): IModuleMember = search(m.typeName)(m.pos)
 
-  def checkIsList(i: IIs): Boolean = {
+  def checkIsList(i: IIs)(implicit pos: Position): Boolean = {
     for (mem <- i.list) {
       search(mem.iType.name)
     }
@@ -42,7 +43,7 @@ final case class Scope(typeScope: ITypeScope = primScope,
     true
   }
 
-  def findMethod(id: ID, of: TOfType): BodyContent = {
+  def findMethod(id: ID, of: TOfType)(implicit pos: Position): BodyContent = {
     for (t <- of.typeList) {
       t match {
         case p: TPartialType => search(p.name)
@@ -59,7 +60,7 @@ final case class Scope(typeScope: ITypeScope = primScope,
     ???
   }
 
-  def search(t: TypeId): IModuleMember = typeScope.getOrElse(t, throw new TypeNotFoundException(t))
+  def search(t: TypeId)(implicit pos: Position): IModuleMember = typeScope.getOrElse(t, throw new TypeNotFoundException(t))
 
-  def searchID(i: ID): TOfType = varScope.getOrElse(i, throw new VariableNotFoundException(s"$i not found in $filename"))
+  def searchID(i: ID)(implicit pos: Position): TOfType = varScope.getOrElse(i, throw new VariableNotFoundException(s"$i not found in $filename"))
 }
