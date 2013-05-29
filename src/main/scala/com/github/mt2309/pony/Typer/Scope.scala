@@ -21,7 +21,9 @@ final case class Scope(typeScope: ITypeScope = primScope,
     if (varScope.contains(id)) {
       throw new VariableShadowingException(s"Variable $id, of type $of shadows variable with type ${this.varScope.get(id)}")(pos, this)
     }
-    this.copy(varScope = this.varScope + (id -> of))
+    val cp: Scope = this.copy(varScope = (this.varScope + (id -> of)))
+    println(s"copy size = ${cp.varScope.size}")
+    cp
   }
 
   def updateScope(typeId: TypeId)(implicit pos: Position): Scope = {
@@ -34,6 +36,8 @@ final case class Scope(typeScope: ITypeScope = primScope,
   }
 
   def mergeScope(that: Scope): Scope = this.copy(varScope = varScope ++ that.varScope)
+
+  def setClass(optClazz: Option[IModuleMember]) = this.copy(currentClass = optClazz)
 
 
   def search(t: TypeClass): IModuleMember = {
@@ -74,5 +78,5 @@ final case class Scope(typeScope: ITypeScope = primScope,
 
   def search(t: TypeId)(implicit pos: Position): IModuleMember = typeScope.getOrElse(t, throw new TypeNotFoundException(t))
 
-  def searchID(i: ID)(implicit pos: Position): TOfType = varScope.getOrElse(i, throw new VariableNotFoundException(s"$i not found in $filename")(pos, this))
+  def searchID(i: ID)(implicit pos: Position): TOfType = varScope.getOrElse(i, throw new VariableNotFoundException(s"$i not found")(pos, this))
 }

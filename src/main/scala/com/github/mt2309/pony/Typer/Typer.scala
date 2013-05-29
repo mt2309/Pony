@@ -73,14 +73,23 @@ final case class TExpr(unary: TUnary, operator: List[(Operator, TUnary)])(implic
     if (operator.isEmpty)
       unary.extractOfType
     else
-      numericOfType
+      opList
   }
 
   private def opList: TOfType = {
     operator.last._1 match {
-      case t: NumericOp => numericOfType
-      case t: BooleanOp => boolOfType
-      case t: NumericBooleanOp => new TOfType(numericOfType.typeList ++ boolOfType.typeList)
+      case t: NumericOp => {
+        println(t.toString)
+        numericOfType
+      }
+      case t: BooleanOp => {
+        println(t.toString)
+        boolOfType
+      }
+      case t: NumericBooleanOp => {
+        println(t.toString)
+        new TOfType(numericOfType.typeList ++ boolOfType.typeList)
+      }
       case t: TypeOp => ???
     }
   }
@@ -174,7 +183,6 @@ final case class TPonyString(s: String)(implicit val scope: Scope) extends TAtom
 
 final case class TPonyID(i: ID)(implicit val scope: Scope) extends TAtom with Typer{
   def extractOfType = {
-    println(scope.varScope)
     scope.searchID(i)(this.pos)
   }
 }

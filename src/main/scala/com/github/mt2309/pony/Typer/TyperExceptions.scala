@@ -30,4 +30,4 @@ final class TypeMismatch(expected: String, got: String)(implicit pos: Position, 
 final class ThisUsedOutsideClassException(implicit pos: Position, scope: Scope) extends TyperException("This was used outside of a class")
 
 
-final class TyperInferenceException(implicit pos: Position, scope: Scope) extends TyperException("Type inference is not enabled or working yet, please annotate with types")
+final class TyperInferenceException(pos: Position, scope: Scope) extends TyperException("Type inference is not enabled or working yet, please annotate with types")(pos, scope)
