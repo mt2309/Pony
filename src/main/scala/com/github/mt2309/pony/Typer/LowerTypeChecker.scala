@@ -2,7 +2,6 @@ package com.github.mt2309.pony.Typer
 
 import com.github.mt2309.pony.Common._
 import com.github.mt2309.pony.AST._
-import scala.annotation.tailrec
 import scala.util.parsing.input.Position
 
 /**

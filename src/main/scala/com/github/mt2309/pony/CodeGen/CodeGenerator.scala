@@ -3,6 +3,8 @@ package com.github.mt2309.pony.CodeGen
 import com.github.mt2309.pony.Typer.{TModuleMember, TypedModule}
 import com.github.mt2309.pony.Common.{TypeId, FileContents}
 
+import org.jllvm.{LLVMConstant, LLVMInstructionBuilder, LLVMModule, LLVMContext}
+
 /**
  * User: mthorpe
  * Date: 29/05/2013
@@ -15,19 +17,19 @@ final class CodeGenerator(val modules: Set[TypedModule]) {
 }
 
 final class ModuleCodeGenerator(typeId: TypeId, moduleMember: TModuleMember) {
+  val const = LLVMConstant
+
+
   def generate: CompleteFile = {
+
     val header = new Header(typeId, createHeader)
 
     new CompleteFile(header, new SourceFile(header, createSourceFile))
   }
 
   def createHeader: FileContents = {
-    val builder = new StringBuilder
 
-    builder.append(s"")
-
-
-    builder.toString()
+    ???
   }
 
   def createSourceFile: FileContents = ???
