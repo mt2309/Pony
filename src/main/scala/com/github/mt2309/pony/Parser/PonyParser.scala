@@ -267,7 +267,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
 
   // Binary operators
   private def operator: Parser[Operator] = positioned {
-    plus | minus | times | divide | mod | lshift | rshift | gt | lt | gte | lte | ne | steq | nsteq | or | xor | and
+    plus | minus | times | divide | mod | lshift | rshift | gt | lt | gte | lte | ne | steq | stneq | or | xor | and
   }
   private def plus: Parser[Operator] = "+" ^^ {s => new Plus}
   private def minus: Parser[Operator] = "-" ^^ {s => new Minus}
@@ -282,7 +282,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   private def lte: Parser[Operator] = "<=" ^^ {s => new LTE}
   private def ne: Parser[Operator] = "!=" ^^ {s => new NE}
   private def steq: Parser[Operator] = "#=" ^^ {s => new STEq}
-  private def nsteq: Parser[Operator] = "~=" ^^ {s => new NSTeq}
+  private def stneq: Parser[Operator] = "~=" ^^ {s => new STNeq}
   private def or: Parser[Operator] = "|" ^^ {s => new Or}
   private def xor: Parser[Operator] = "^" ^^ {s => new XOr}
   private def and: Parser[Operator] = "&" ^^ {s => new And}

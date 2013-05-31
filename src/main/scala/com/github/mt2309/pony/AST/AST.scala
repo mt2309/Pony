@@ -131,7 +131,7 @@ final class GTE     extends BooleanOp with AST
 final class LTE     extends BooleanOp with AST
 final class NE      extends BooleanOp with AST
 final class STEq    extends TypeOp with AST
-final class NSTeq   extends TypeOp with AST
+final class STNeq   extends TypeOp with AST
 final class Or      extends NumericBooleanOp with AST
 final class And     extends NumericBooleanOp with AST
 final class XOr     extends NumericBooleanOp with AST
