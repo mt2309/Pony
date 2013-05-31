@@ -129,6 +129,7 @@ final class GT      extends BooleanOp with AST
 final class LT      extends BooleanOp with AST
 final class GTE     extends BooleanOp with AST
 final class LTE     extends BooleanOp with AST
+final class EQ      extends BooleanOp with AST
 final class NE      extends BooleanOp with AST
 final class STEq    extends TypeOp with AST
 final class STNeq   extends TypeOp with AST

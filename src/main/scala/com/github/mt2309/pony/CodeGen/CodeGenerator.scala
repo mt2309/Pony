@@ -17,7 +17,7 @@ final class CodeGenerator(val modules: Set[TypedModule]) {
 }
 
 final class ModuleCodeGenerator(typeId: TypeId, moduleMember: TModuleMember) {
-  val const = LLVMConstant
+//  val const = LLVMConstant
 
 
   def generate: CompleteFile = {
