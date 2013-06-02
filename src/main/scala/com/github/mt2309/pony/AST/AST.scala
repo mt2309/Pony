@@ -36,7 +36,7 @@ final case class Actor
 final case class Trait
 (n: TypeId, f: FormalArgs, i:Is, t: TypeBody)(implicit override val filename: Filename) extends PonyParserClass(n,f,i,t) with AST
 final case class Object
-(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)(implicit override val filename: Filename) extends PonyParserClass(n,f,i,t) with AST
+(n: TypeId, f: FormalArgs, i:Is, t: TypeBody, isStatic: Boolean)(implicit override val filename: Filename) extends PonyParserClass(n,f,i,t) with AST
 
 final case class Param(name: ID, ofType: OfType) extends AST
 

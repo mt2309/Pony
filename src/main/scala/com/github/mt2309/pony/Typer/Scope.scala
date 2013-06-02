@@ -10,10 +10,13 @@ import scala.util.parsing.input.Position
  * Date: 28/05/2013
  * Time: 21:36
  */
+
+final case class ClassData(currentClass: Option[IModuleMember] = None, isStatic: Boolean = false)
+
 final case class Scope(typeScope: ITypeScope = primScope,
                        imports: CompilationUnits = (new QualifiedCompilationUnits(Map.empty) -> new UnqualifiedCompilationUnits(Set.empty)),
                        varScope: VariableScope = Map.empty, // Could include constants here: PI, E etc?
-                       currentClass: Option[IModuleMember] = None,
+                       currentClass: ClassData = new ClassData,
                        filename: Filename = "Primitive") extends NotNull
 {
   def updateScope(id: ID, of: TOfType)(implicit pos: Position): Scope = {
@@ -34,7 +37,7 @@ final case class Scope(typeScope: ITypeScope = primScope,
 
   def mergeScope(that: Scope): Scope = this.copy(varScope = varScope ++ that.varScope)
 
-  def setClass(optClazz: Option[IModuleMember]) = this.copy(currentClass = optClazz)
+  def setClass(optClazz: Option[IModuleMember]) = this.copy(currentClass = currentClass.copy(currentClass = optClazz))
 
 
   def search(t: TypeClass): IModuleMember = {
@@ -72,7 +75,7 @@ final case class Scope(typeScope: ITypeScope = primScope,
         val body = t.body.get(id)
         body.getOrElse(findMethod(id, is)) //throw new MethodNotFoundException(id, name)(pos, this))
       }
-      case IObject(_, _, is, t) => {
+      case IObject(_, _, is, t, _) => {
         val body = t.body.get(id)
         body.getOrElse(findMethod(id, is))
       }

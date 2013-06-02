@@ -36,7 +36,7 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
       classes ++ extraScope,
       pre.imports,
       Map.empty,
-      None,
+      new ClassData(None),
       pre.filename
     )
 
@@ -49,7 +49,7 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
     val res = i.getOrElse(m match {
       case d:Declare => new IDeclare(d.name, pullInIs(d.is), d.declareMap)
       case Actor(name, formal, is, body) => new IActor(name, pullInFormal(formal), pullInIs(is), body)
-      case Object(name, formal, is, body) => new IObject(name, pullInFormal(formal), pullInIs(is), body)
+      case Object(name, formal, is, body, static) => new IObject(name, pullInFormal(formal), pullInIs(is), body, static)
       case Primitive(name) => new IPrimitive(name)
       case Trait(name, formal, is, body) => new ITrait(name, pullInFormal(formal), pullInIs(is), body)
       case Type(name, of, is) => new IType(name, pullInOf(of), pullInIs(is))

@@ -1,18 +1,18 @@
 package com.github.mt2309.pony.Parser
 
-import scala.util.parsing.combinator.RegexParsers
 import language.postfixOps
 
 import com.github.mt2309.pony.AST._
 import com.github.mt2309.pony.Common._
 import scala.util.parsing.input.Positional
+import org.kiama.util.ParserUtilities
 
 object PonyParser {
 
   def parse(file: (Filename, FileContents)): Option[Module] = new PonyParser(file._2)(file._1).parse
 }
 
-final class PonyParser(val contents: FileContents)(implicit val filename: Filename) extends RegexParsers {
+final class PonyParser(val contents: FileContents)(implicit val filename: Filename) extends ParserUtilities {
 
   def parse: Option[Module] = {
     parseAll(module, contents) match {
@@ -64,8 +64,8 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
     }
   }
   private def objectParser: Parser[Object] = positioned {
-    "object" ~> typeId ~ formalArgs ~ is ~ typeBody ^^ {
-      s => new Object(n = s._1._1._1, f = s._1._1._2.getOrElse(List.empty), i = s._1._2, t = s._2)
+    ("static".? <~ "object") ~ (typeId ~ formalArgs) ~ (is ~ typeBody) ^^ {
+      s => new Object(isStatic = s._1._1.isDefined, n = s._1._2._1, f = s._1._2._2.getOrElse(List.empty), i = s._2._1, t = s._2._2)
     }
   }
 

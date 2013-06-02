@@ -32,7 +32,7 @@ final case class IActor(n: TypeId, f: IFormalArgs, i:IIs, t: TypeBody)
                        (implicit override val filename: Filename) extends IPonyClass(n,f,i,t)
 final case class ITrait(n: TypeId, f: IFormalArgs, i:IIs, t: TypeBody)
                        (implicit override val filename: Filename) extends IPonyClass(n,f,i,t)
-final case class IObject(n: TypeId, f: IFormalArgs, i:IIs, t: TypeBody)
+final case class IObject(n: TypeId, f: IFormalArgs, i:IIs, t: TypeBody, isStatic: Boolean)
                         (implicit override val filename: Filename) extends IPonyClass(n,f,i,t)
 
 sealed trait ITypeElement extends ITyper

@@ -4,6 +4,8 @@ import com.github.mt2309.pony.Common._
 import com.github.mt2309.pony.AST._
 import scala.util.parsing.input.Position
 
+import scala.language.reflectiveCalls
+
 /**
  * User: mthorpe
  * Date: 11/05/2013
@@ -159,10 +161,10 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
   }
 
   private def checkBlockContent(b: BlockContent)(implicit scope: Scope): (TBlockContent, Scope) = b match {
-    case Return => (TReturn -> scope)
-    case Throw => (TThrow -> scope)
-    case Break => (TBreak -> scope) // TODO: Should we check if we're in a loop here
-    case Continue => (TContinue -> scope)
+    case Return => (new TReturn -> scope)
+    case Throw => (new TThrow -> scope)
+    case Break => (new TBreak -> scope) // TODO: Should we check if we're in a loop here
+    case Continue => (new TContinue -> scope)
     case b:Block => checkBlock(b) -> scope
     case v: VarDec => checkVarDec(v)
     case Match(list, cases) => {
@@ -174,23 +176,27 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
     case WhileLoop(whileExpr, block) => new TWhileLoop(checkBooleanExpr(whileExpr), checkBlock(block)).setPos(b.pos) -> scope
     case ForLoop(forVars, inExpr, block) => {
       val fV = checkList(forVars, checkForVar)
-      val sc = fV.last.scope
-      (new TForLoop(fV, checkExpression(inExpr), checkBlock(block)(sc)).setPos(b.pos) -> scope)
+      (new TForLoop(fV._1, checkExpression(inExpr), checkBlock(block)(fV._2)).setPos(b.pos) -> scope)
     }
     case Conditional(condList, elseBlock) => {
       (new TConditional(condList.map(t => checkBooleanExpr(t._1) -> checkBlock(t._2)), elseBlock.map(checkBlock)).setPos(b.pos) -> scope)
     }
     case Assignment(lValues, optExpr) => {
       val lV = checkList(lValues, checkLValue)
-      val sc = if (lV.isEmpty) scope else lV.last.scope
-      (new TAssignment(lV, optExpr.map(checkExpression(_)(sc))).setPos(b.pos) -> sc)
+      (new TAssignment(lV._1, optExpr.map(checkExpression(_)(lV._2))).setPos(b.pos) -> lV._2)
     }
   }
 
-  def checkList[J,K <: Typer](list: List[J], f: (J, Scope) => (K, Scope))(implicit scope: Scope): List[K] = list match {
+  private def checkList[J, K <: Typer](list: List[J], f: (J, Scope) => (K, Scope))(implicit scope: Scope): (List[K], Scope) = {
+    val ret = recList(list, f)
+    val sc = if (ret.isEmpty) scope else ret.last.scope
+    (ret -> sc)
+  }
+
+  private def recList[J,K <: Typer](list: List[J], f: (J, Scope) => (K, Scope))(implicit scope: Scope): List[K] = list match {
     case x :: xs => {
       val ret = f(x, scope)
-      ret._1 :: checkList(xs, f)(ret._2)
+      ret._1 :: recList(xs, f)(ret._2)
     }
     case Nil => Nil
   }
@@ -342,10 +348,10 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
   }
 
   private def checkMode(mode: Mode)(implicit scope: Scope): TMode = mode match {
-    case ReadOnly => TReadOnly
-    case Immutable => TImmutable
-    case Mutable => TMutable
-    case Unique => TUnique
+    case ReadOnly => new TReadOnly
+    case Immutable => new TImmutable
+    case Mutable => new TMutable
+    case Unique => new TUnique
     case ModeExpr(expr) => new TModeExpr(checkExpression(expr))
   }
 }
