@@ -1,8 +1,8 @@
 package com.github.mt2309.pony.Typer
 
 import scala.util.parsing.input.Position
-import com.github.mt2309.pony.Common.{ID, TypeId}
 import com.github.mt2309.pony.AST.BodyContent
+import com.github.mt2309.pony.Common.{ID, TypeId}
 
 /**
  * User: mthorpe
@@ -31,7 +31,7 @@ final class AssignmentException(msg: String)(implicit pos: Position, scope: Scop
 final class VariableShadowingException(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)
 final class TypeShadowingException(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)
 final class LambdaInMethCallException(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)
-final class TypeMismatch(expected: String, got: String)(implicit pos: Position, scope: Scope) extends TyperException(s"Got $expected, but expected $got")
+final class TypeMismatch(expected: String, got: String)(implicit pos: Position, scope: Scope) extends TyperException(s"Got $got, but expected $expected")
 final class ThisUsedOutsideClassException(implicit pos: Position, scope: Scope) extends TyperException("This was used outside of a class")
 final class UntypedListException(msg: ID)(implicit pos: Position, scope: Scope) extends TyperException(s"Variable $msg has no type associated with it")
 

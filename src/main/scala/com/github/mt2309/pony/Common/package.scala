@@ -4,11 +4,11 @@ import com.github.mt2309.pony.AST.{TypeClass, Param, Arg}
 import com.github.mt2309.pony.CompilationUnit.{UnqualifiedCompilationUnits, QualifiedCompilationUnits}
 import com.github.mt2309.pony.Typer.IModuleMember
 
-/**
- * User: mthorpe
- * Date: 05/05/2013
- * Time: 20:07
- */
+import scala.language.implicitConversions
+
+
+
+
 
 // This is a collection of types we will enforce through the compiler
 // Would be pretty cool to assert that `TypeId` always starts with a capital letter

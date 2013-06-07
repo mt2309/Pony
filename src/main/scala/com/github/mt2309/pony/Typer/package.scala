@@ -3,6 +3,8 @@ package com.github.mt2309.pony
 import com.github.mt2309.pony.AST.{ModuleMember, Primitive}
 import com.github.mt2309.pony.Common.{ID, TypeId, ITypeScope}
 
+import language.implicitConversions
+
 /**
  * User: mthorpe
  * Date: 19/05/2013
@@ -16,7 +18,7 @@ package object Typer {
   type TArgs = List[TArg]
   type TParams = List[TParam]
 
-  private val pScope = new Scope
+  val pScope = new Scope
 
   val void: IPrimitive = new IPrimitive("Void")
 

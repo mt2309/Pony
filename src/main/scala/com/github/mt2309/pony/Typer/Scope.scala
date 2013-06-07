@@ -4,6 +4,7 @@ import com.github.mt2309.pony.Common._
 import com.github.mt2309.pony.CompilationUnit.{UnqualifiedCompilationUnits, QualifiedCompilationUnits}
 import com.github.mt2309.pony.AST._
 import scala.util.parsing.input.Position
+import annotation.tailrec
 
 /**
  * User: mthorpe
@@ -25,6 +26,14 @@ final case class Scope(typeScope: ITypeScope = primScope,
     }
     val cp: Scope = this.copy(varScope = (this.varScope + (id -> of)))
     cp
+  }
+
+  @tailrec
+  def updateScope(varMap: Map[ID, OfType], lower: LowerTypeChecker)(implicit pos: Position): Scope = {
+    if (varMap.isEmpty)
+      this
+    else
+      this.updateScope(varMap.head._1, lower.checkOf(varMap.head._2)(this)).updateScope(varMap.tail, lower)
   }
 
   def updateScope(typeId: TypeId)(implicit pos: Position): Scope = {
@@ -122,5 +131,7 @@ final case class Scope(typeScope: ITypeScope = primScope,
 
   def search(t: TypeId)(implicit pos: Position): IModuleMember = typeScope.getOrElse(t, throw new TypeNotFoundException(t))
 
-  def searchID(i: ID)(implicit pos: Position): TOfType = varScope.getOrElse(i, throw new VariableNotFoundException(s"$i not found")(pos, this))
+  def searchID(i: ID)(implicit pos: Position): TOfType = {
+    varScope.getOrElse(i, throw new VariableNotFoundException(s"$i not found")(pos, this))
+  }
 }

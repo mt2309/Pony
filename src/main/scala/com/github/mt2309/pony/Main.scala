@@ -8,7 +8,7 @@ import java.io.IOException
  * Time: 22:44
  */
 
-case class Config(stage: Int = 3, help: Boolean = false, version: Boolean = false, input: String = ".", output: String = "a.out")
+case class Config(stage: Int = 3, help: Boolean = false, version: Boolean = false, input: String = ".", output: String = "a.out", implicitSender: Boolean = true)
 
 object Main extends App {
 
@@ -18,6 +18,7 @@ object Main extends App {
     override def options = Seq(
       intOpt("s", "stage", "what stage of the compiler to run to (mostly used for debugging)\n" + stages) {(v: Int, c: Config) => c.copy(stage = v)},
       booleanOpt("v", "version", "Version") {(b: Boolean, c: Config) => c.copy(version = b)},
+      booleanOpt("n", "no-implicit-sender", "Implicit Sender") {(b: Boolean, c: Config) => c.copy(implicitSender = !b)},
       booleanOpt("h", "help", "print usage message") {(b: Boolean, c: Config) => c.copy(version = b)},
       opt("i", "input", "input directory") {(i: String, c:Config) => c.copy(input = i)},
       opt("o", "output", "output file") {(o: String, c:Config) => c.copy(output =  o)}
@@ -46,6 +47,11 @@ object Main extends App {
     } catch {
       case e: IOException => {println("Starting directory " + input + " not found"); sys.exit(1)}
     }
+
+    if (stage >= 3)
+      unit.compile(output)
+
+
     println("here")
   }
 }

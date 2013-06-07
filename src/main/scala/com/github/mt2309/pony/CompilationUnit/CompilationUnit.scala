@@ -9,6 +9,8 @@ import com.github.mt2309.pony.Common._
 import com.github.mt2309.pony.Typer.PreTypedModule
 import com.github.mt2309.pony.AST.Module
 import com.github.mt2309.pony.Typer.TypedModule
+import com.github.mt2309.pony.CodeGen.CodeGenerator
+import com.github.mt2309.pony.Loader.Loader
 
 /**
  * User: mthorpe
@@ -39,5 +41,9 @@ final class CompilationUnit(val absolutePath: String, stage: Int) {
 
   def searchType(name: TypeId): Option[IModuleMember] = {
     iTyped.find(t => t.types.find(_._1 == name).isDefined).map(_.types.get(name)).flatten
+  }
+
+  def compile(output: String): Unit = {
+    new CodeGenerator(Loader.previouslySeenPaths.values.toIndexedSeq, output).codeGen()
   }
 }

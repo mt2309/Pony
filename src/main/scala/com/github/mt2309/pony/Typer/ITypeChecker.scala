@@ -21,7 +21,7 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
   private def pullInTypesModule(pre: PreTypedModule): ITypedModule = {
     val classes: Map[TypeId, IModuleMember] = pre.classes.map(c => c._1 -> pullInTypes(c._2)(pre.scope, pre.imports, pre.filename))
 
-    val notInThisModule = modules.filterNot(b => (b.filename == pre.filename))
+    val notInThisModule: Set[PreTypedModule] = modules.filterNot(b => (b.filename == pre.filename))
     val more = notInThisModule.map(t => t.scope).flatten
 
     val extraScope: Map[TypeId, IModuleMember] = {

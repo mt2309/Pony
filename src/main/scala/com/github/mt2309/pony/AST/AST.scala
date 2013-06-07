@@ -50,7 +50,7 @@ final case class TypeClass(name: TypeId,
                            module:Option[TypeId] = None,
                            mode: Mode = ReadOnly,
                            formalArgs: FormalArgs = List.empty)(implicit override val fileName: Filename) extends TypeElement with AST {
-  override def toString: String = if (module.isDefined) name ++ module.get else name
+  override def toString: String = if (module.isDefined) name ++ "::" ++ module.get else name
 }
 
 final case class Lambda(mode: Mode, args: Args, result: Params, throws: Boolean, block: Option[Block])(implicit override val fileName: Filename) extends TypeElement with AST
@@ -129,10 +129,10 @@ final class GT      extends BooleanOp with AST
 final class LT      extends BooleanOp with AST
 final class GTE     extends BooleanOp with AST
 final class LTE     extends BooleanOp with AST
-final class EQ      extends BooleanOp with AST
-final class NE      extends BooleanOp with AST
 final class STEq    extends TypeOp with AST
 final class STNeq   extends TypeOp with AST
+final class EQ      extends NumericBooleanOp with AST
+final class NE      extends NumericBooleanOp with AST
 final class Or      extends NumericBooleanOp with AST
 final class And     extends NumericBooleanOp with AST
 final class XOr     extends NumericBooleanOp with AST

@@ -3,6 +3,7 @@ package com.github.mt2309.pony.Typer
 import com.github.mt2309.pony.Common._
 import com.github.mt2309.pony.AST._
 import scala.util.parsing.input.Positional
+import annotation.tailrec
 
 /**
  * User: mthorpe
@@ -14,7 +15,7 @@ import scala.util.parsing.input.Positional
 sealed trait Typer extends NotNull with Positional {
   def scope: Scope
 
-  def codegen: AnyRef = ???
+  def codeGen: AnyRef = ???
 }
 
 final case class PreTypedModule(imports: CompilationUnits, classes: Map[TypeId, ModuleMember])(implicit val scope: Map[TypeId, ModuleMember], val filename: Filename) extends NotNull with Positional
@@ -25,6 +26,15 @@ sealed abstract class TModuleMember(val name: TypeId)(implicit val scope: Scope)
 
 final case class TPrimitive(typename: TypeId)(implicit override val scope: Scope) extends TModuleMember(typename) with TTypeElement {
   def toIPrim: IPrimitive = new IPrimitive(typename)
+  override def isSubType(that: TTypeElement): Boolean = that match {
+    case TPrimitive(name) => name == typename
+    case _ => false
+  }
+
+  override def equals(that: Any): Boolean = that match {
+    case t:TPrimitive => this.typename == t.typename
+    case _ => false
+  }
 }
 
 final case class TDeclare(typename: TypeId, is: TIs, declareMap: TDeclareMap)(implicit override val scope: Scope) extends TModuleMember(typename)
@@ -41,11 +51,46 @@ final case class TCombinedArgs(formalArgs: FormalParams, args: TParams)(implicit
 final case class TArg(expr: Option[TExpr], ofType: Option[TOfType], assign: Option[TExpr])(implicit val scope: Scope) extends Typer
 
 sealed trait TTypeElement extends Typer {
-  def isSubType(that: TTypeElement): Boolean = ???
+  def isSubType(that: TTypeElement): Boolean
 }
-final case class TPartialType(name: TTypeClass)(implicit val scope: Scope) extends TTypeElement
-final case class TTypeClass(moduleMember: IModuleMember, mode: TMode = new TReadOnly()(new Scope), formalArgs: TFormalArgs = List.empty)(implicit val scope: Scope) extends TTypeElement
-final case class TLambda(mode: TMode, args: TArgs, result: TParams, throws: Boolean, block: Option[TBlock])(implicit val scope: Scope) extends TTypeElement
+
+final case class TPartialType(name: TTypeClass)(implicit val scope: Scope) extends TTypeElement {
+  def isSubType(that: TTypeElement): Boolean = that match {
+    case t:TPrimitive => false
+    case t:TPartialType => this.name.isSubType(t.name)
+    case t:TTypeClass => this.name.isSubType(t)
+    case t:TLambda => false
+  }
+
+  override def toString = "partial " ++ name.moduleMember.name
+}
+final case class TTypeClass(moduleMember: IModuleMember, mode: TMode = new TReadOnly()(pScope), formalArgs: TFormalArgs = List.empty)(implicit val scope: Scope) extends TTypeElement {
+  def isSubType(that: TTypeElement): Boolean = that match {
+    case TPrimitive(name) => name == moduleMember.name
+    case t:TPartialType => this.moduleMember.isSubType(t.name.moduleMember)
+    case t:TTypeClass => this.moduleMember.isSubType(t.moduleMember)
+    case t:TLambda => false
+  }
+
+  def getVars: Map[ID, OfType] = moduleMember.getVariables
+
+  override def toString = moduleMember.name
+}
+final case class TLambda(mode: TMode, args: TArgs, result: TParams, throws: Boolean, block: Option[TBlock])(implicit val scope: Scope) extends TTypeElement {
+  def isSubType(that: TTypeElement): Boolean = that match {
+    case t:TPrimitive => false
+    case t:TPartialType => false
+    case t:TTypeClass => false
+    case t:TLambda => {
+      val arg = t.args.zip(this.args).map(t => t._1 == t._2).reduce(_ && _)
+      val res = t.result.zip(this.result).map(t => t._1 == t._2).reduce(_ && _)
+
+      arg && res
+    }
+  }
+
+  override def toString = "lambda " ++ args.toString ++ "->" ++ result.toString
+}
 
 sealed abstract class TMode(implicit val scope: Scope)              extends Typer
 final case class TReadOnly(implicit override val scope: Scope)      extends TMode
@@ -55,28 +100,31 @@ final case class TUnique(implicit override val scope: Scope)        extends TMod
 final case class TModeExpr(expr: TExpr)(implicit override val scope: Scope) extends TMode
 
 final case class TBlock(contents:List[TBlockContent], catchBlock: Option[TBlock], alwaysBlock: Option[TBlock])(implicit val scope: Scope) extends TBlockContent with Typer
-final case class TIs(list: List[TTypeClass])(implicit val scope: Scope) extends Typer
+final case class TIs(list: List[TTypeClass])(implicit val scope: Scope) extends Typer {
+  def getVariables: Map[ID, OfType] = {
+    val vars = for (tClass <- list) yield tClass.getVars
+    var m: Map[ID, OfType] = Map.empty
+    for (v <- vars; varD <- v) {
+      if (!m.contains(varD._1))
+        m += varD
+    }
+
+    m
+  }
+}
 final case class TDeclareMap(map: List[TPonyMap])(implicit val scope: Scope) extends Typer
 final case class TPonyMap(from:BodyContent, to: ID)(implicit val scope: Scope) extends Typer
 
 final case class TOfType(typeList: Set[TTypeElement])(implicit val scope: Scope) extends Typer {
+
   def isSubType(that: TOfType): Boolean = {
     (for (t <- this.typeList) yield {
-      if (that.typeList.contains(t)) {
-        true
-      }
-      else {
-        (for (thatT <- that.typeList) yield (t.isSubType(thatT))).fold(true)(_ && _)
-      }
-
-      false
-    }).fold(true)(_ && _)
+      (for (tt <- that.typeList) yield (tt == t || t.isSubType(tt))).reduce(_ || _)
+    }).reduce(_ && _)
   }
-
 
   def intersection(that: TOfType): TOfType = ???
 }
-
 
 final case class TTypeBody(body: Map[ID,TBodyContent])(implicit val scope: Scope) extends Typer
 
@@ -91,6 +139,7 @@ final case class TMessage(contents: TMethodContent, block: Option[TBlock])(impli
 final case class TMethodContent(mode: TMode, id:ID, combinedArgs: TCombinedArgs)(implicit val scope: Scope) extends Typer
 
 final case class TExpr(unary: TUnary, operator: List[(Operator, TUnary)])(implicit val scope: Scope) extends Typer {
+
   def extractOfType(implicit scope: Scope): TOfType = {
     val unaryOfType = unary.extractOfType
     if (operator.isEmpty)
@@ -99,6 +148,7 @@ final case class TExpr(unary: TUnary, operator: List[(Operator, TUnary)])(implic
       opList(unaryOfType, operator)
   }
 
+  @tailrec
   private def opList(of: TOfType, list: List[(Operator, TUnary)]): TOfType = list match {
     case x :: xs => {
       val rhsType = x._2.extractOfType
@@ -111,7 +161,7 @@ final case class TExpr(unary: TUnary, operator: List[(Operator, TUnary)])(implic
         }
 
         case t: BooleanOp => {
-          if (of.isSubType(boolOfType) && rhsType.isSubType(boolOfType))
+          if (of.isSubType(numericOfType) && rhsType.isSubType(numericOfType))
             opList(boolOfType, xs)
           else
             throw new TypeMismatch(boolOfType.toString, rhsType.toString)(x._1.pos, scope)
@@ -130,25 +180,6 @@ final case class TExpr(unary: TUnary, operator: List[(Operator, TUnary)])(implic
 
     case Nil => of
   }
-
-
-
-//    operator.last._1 match {
-//      case t: NumericOp => {
-//        println(t.toString)
-//        numericOfType
-//      }
-//      case t: BooleanOp => {
-//        println(t.toString)
-//        boolOfType
-//      }
-//      case t: NumericBooleanOp => {
-//        println(t.toString)
-//        new TOfType(numericOfType.typeList ++ boolOfType.typeList)
-//      }
-//      case t: TypeOp => ???
-//    }
-//  }
 }
 
 trait TBlockContent extends Typer
@@ -251,3 +282,24 @@ final case class TPonyTypeId(t: TypeId)(implicit val scope: Scope) extends TAtom
 sealed abstract class TSecondCommand(implicit val scope: Scope) extends Typer
 final case class TSecondCommandArgs(args: TArgs)(implicit override val scope: Scope) extends TSecondCommand with Typer
 final case class TCommandCall(id: BodyContent, formalArgs: TFormalArgs, args: TArgs)(implicit override val scope: Scope) extends TSecondCommand with Typer
+
+object TyperHelper {
+  private var ofTypeCache: Map[IOfType, TOfType] = Map.empty
+  private var isCache: Map[IIs, TIs] = Map.empty
+  private var moduleCache: Map[IModuleMember, TModuleMember] = Map.empty
+  private var typeclassCache: Map[TypeElement, TTypeElement] = Map.empty
+
+
+  def lookupIs(is: IIs): Option[TIs] = isCache.get(is)
+  def updateIs(is: IIs, tIs: TIs): Unit = isCache += is -> tIs
+
+  def lookupOf(of: IOfType): Option[TOfType] = ofTypeCache.get(of)
+  def updateOfType(of: IOfType, tOf: TOfType): Unit = ofTypeCache += of -> tOf
+
+  def lookupModule(i: IModuleMember): Option[TModuleMember] = moduleCache.get(i)
+  def updateModules(i: IModuleMember, t: TModuleMember): Unit = moduleCache += i -> t
+
+  def lookupTypeclass(t: TypeElement): Option[TTypeElement] = typeclassCache.get(t)
+
+  def updateTypeclass(t: TypeElement, tt: TTypeElement): Unit = typeclassCache += t -> tt
+}

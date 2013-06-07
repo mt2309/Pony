@@ -4,7 +4,6 @@ import language.postfixOps
 
 import com.github.mt2309.pony.AST._
 import com.github.mt2309.pony.Common._
-import scala.util.parsing.input.Positional
 import org.kiama.util.ParserUtilities
 
 object PonyParser {
@@ -45,7 +44,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   }
 
   private def map: Parser[PonyMap] = positioned {
-    id ~ "=" <~ id ^^ {s => new PonyMap(s._2, s._1)}
+    id ~ "=" ~ id ^^ {s => new PonyMap(s._2, s._1._1)}
   }
 
   private def typeParser: Parser[Type] = positioned {
@@ -359,22 +358,21 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
 
 
   // Modes
-  private def mode: Parser[Mode] = positioned {
-    immutable | mutable | unique | modeExpr
-  }
-  private def immutable: Parser[Mode] = "!" ^^ {s => Immutable}
-  private def mutable: Parser[Mode] = "~" ^^ {s => Mutable}
-  private def unique: Parser[Mode] = "@" ^^ {s => Unique}
+  private def mode: Parser[Mode] = positioned {immutable | mutable | unique}
+
+  private def immutable: Parser[Mode] = "[:" ~ "imm" ~ "]" ^^ {s => Immutable}
+  private def mutable: Parser[Mode] = "[:" ~ "mut" ~ "]"^^ {s => Mutable}
+  private def unique: Parser[Mode] = "[:" ~ "uniq" ~ "]" ^^ {s => Unique}
   private def modeExpr: Parser[ModeExpr] = positioned {
     "[:" ~> expr <~ "]" ^^ {new ModeExpr(_)}
   }
 
   // Basic types
-  private def typeId: Parser[TypeId] = """[A-Z][a-zA-Z_0-9]*""".r
+  private def typeId: Parser[TypeId] = """[A-Z][a-zA-Z_0-9]*""".r ^^ {new TypeId(_)}
   private def string: Parser[String] = ("\""+"""([^"\p{Cntrl}\\]|\\[\\'"bfnrt]|\\u[a-fA-F0-9]{4})*"""+"\"").r
   private def int: Parser[Int] = """-?\d+""".r ^^ { _.toInt }
   private def double: Parser[Double] = """-?(\d+(\.\d*)?|\d*\.\d+)([eE][+-]?\d+)?[fFdD]?""".r ^^ {_.toDouble}
-  private def id: Parser[ID] = """[a-z][a-zA-Z_0-9]*""".r
+  private def id: Parser[ID] = """[a-z][a-zA-Z_0-9]*""".r ^^ {new ID(_)}
 
   // Helper
   private def parserList[K](p: Parser[K], tok: String): Parser[List[K]] = ((p ~ tok)*) ~ p ^^ {s => s._1.map(_._1) ++ List(s._2)}
