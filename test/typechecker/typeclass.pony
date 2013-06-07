@@ -2,6 +2,6 @@ trait Imm[Int] {
 
 }
 
-object I is Imm![Imm] {
+object I is Imm[:imm][Imm] {
 
 }
