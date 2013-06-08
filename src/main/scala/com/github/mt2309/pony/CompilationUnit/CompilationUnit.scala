@@ -40,7 +40,7 @@ final class CompilationUnit(val absolutePath: String, stage: Int) {
   }
 
   def searchType(name: TypeId): Option[IModuleMember] = {
-    iTyped.find(t => t.types.find(_._1 == name).isDefined).map(_.types.get(name)).flatten
+    iTyped.find(t => t.types.exists(_._1 == name)).map(_.types.get(name)).flatten
   }
 
   def compile(output: String): Unit = {

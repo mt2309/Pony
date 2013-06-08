@@ -18,16 +18,16 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
   def codeGen(): Unit = {
     val classes: IndexedSeq[(TypeId, TModuleMember, Int)] = (modules.map(_.classes).flatten ++ tPrimitiveTypes.map(t => t.typename -> t)).zipWithIndex.map(t => (t._1._1, t._1._2, t._2))
 
-    val longArraySize = (classes.size / 64) + 1
+    val longArraySize = classes.size / 64 + 1
 
     for (clazz <- classes) {
       println(s"unsigned long * ${clazz._1}_id")
     }
 
-    println(s"\n\nvoid initialise()\n{\nclazz_set_size = $longArraySize;")
+    println(s"\n\nvoid initialise()\n{\n\tclazz_set_size = $longArraySize;")
 
     for (clazz <- classes) {
-      println(s"${clazz._1}_id = initialise_bit_set(${clazz._3});")
+      println(s"\t${clazz._1}_id = initialise_bit_set(${clazz._3});")
     }
 
     println("}")

@@ -153,7 +153,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
     }
   }
 
-  private def optModule: Parser[Option[TypeId]] = ("::" ~> typeId) ?
+  private def optModule: Parser[Option[TypeId]] = ("::" ~> typeId).?
 
   private def lambda: Parser[Lambda] = positioned {
     "lambda" ~> (mode ~ args) ~ results ~ throws ~ isOptBlock ^^ {
@@ -161,13 +161,13 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
     }
   }
 
-  private def isOptBlock: Parser[Option[Block]] = ("is" ~> block) ?
+  private def isOptBlock: Parser[Option[Block]] = ("is" ~> block).?
 
   private def throws: Parser[Boolean] = ("throws"?) ^^ {_.isDefined}
 
   private def formalParams: Parser[List[TypeId]] = (("[" ~> parserList(typeId, ",") <~ "]")?) ^^ {_.getOrElse(List.empty)}
 
-  private def formalArgs: Parser[Option[List[TypeClass]]] = ("[" ~> parserList(typeclass, ",") <~ "]") ?
+  private def formalArgs: Parser[Option[List[TypeClass]]] = ("[" ~> parserList(typeclass, ",") <~ "]").?
 
   private def block: Parser[Block] = positioned {
     "{" ~> blockList ~ (catchBlock?) ~ (always?) <~ "}" ^^ {s => new Block(s._1._1, s._1._2, s._2)}
@@ -305,7 +305,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
     unaryOp ~ command ^^ {s => new UnaryCommand(s._1, s._2)}
   }
 
-  private def unaryOp: Parser[List[UnaryOp]] = ((partial | unaryMinus | unaryBang)*)
+  private def unaryOp: Parser[List[UnaryOp]] = (partial | unaryMinus | unaryBang) *
   private def partial: Parser[UnaryOp] = positioned {
     "\\" ^^ {s => PARTIAL}
   }
