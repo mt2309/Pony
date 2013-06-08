@@ -1,9 +1,9 @@
 package com.github.mt2309.pony
 
-import com.github.mt2309.pony.AST.{ModuleMember, Primitive}
 import com.github.mt2309.pony.Common.{ID, TypeId, ITypeScope}
 
 import language.implicitConversions
+import Typer._
 
 /**
  * User: mthorpe
@@ -33,14 +33,36 @@ package object Typer {
   val doubleOfType = new TOfType(Set(pDouble.toTPrim))(pScope)
   val numericOfType = new TOfType(Set(pInt.toTPrim, pDouble.toTPrim, pUInt.toTPrim))(pScope)
 
-  val primitiveTypes: Set[ModuleMember] = Set(new Primitive("Int"), new Primitive("UInt"), new Primitive("Char"))
-  val primMap: Map[TypeId, ModuleMember] = primitiveTypes.map(t => t.typeName -> t).toMap
+  // this.type - incomplete
+  val thisOfType = new TOfType(Set())(pScope)
 
-  // code duplication :(
+  val primitiveTypes: Set[AST.ModuleMember] = Set(new AST.Primitive("Int"), new AST.Primitive("UInt"), new AST.Primitive("Char"))
+  val primMap: Map[TypeId, AST.ModuleMember] = primitiveTypes.map(t => t.typeName -> t).toMap
+
   val tVoid = new TPrimitive("Void")(new Scope)
   val tPrimitiveTypes: Set[TPrimitive] = Set(pChar.toTPrim, bool.toTPrim, pInt.toTPrim, pDouble.toTPrim, pUInt.toTPrim)
   val primTOfType = new TOfType(tPrimitiveTypes.asInstanceOf[Set[TTypeElement]])(pScope)
   val primScope: ITypeScope = tPrimitiveTypes.map(t => t.name -> t.toIPrim).toMap
 
   type VariableScope = Map[ID, TOfType]
+
+}
+
+object ImplicitTraits {
+
+  implicit val scope = pScope
+  implicit val filename = "Implicit trait"
+
+  val intOf = new AST.ConcreteOfType(Set(new AST.TypeClass("Int")))
+
+  val Actor: ITrait = new ITrait("Actor", List.empty, new IIs(List.empty), new AST.TypeBody(Map.empty))
+
+  val Hashable: ITrait = new ITrait("Hashable", List.empty, new IIs(List.empty),
+    new AST.TypeBody(Map("hash" -> new AST.Function(new AST.MethodContent(AST.ReadOnly, "hash", new AST.CombinedArgs(List.empty, List.empty)), List(new AST.Param("hash", intOf)), false, None))))
+
+  val Partial: ITrait = new ITrait("Partial", List.empty, new IIs(List.empty),
+    new AST.TypeBody(Map("mirror" -> new AST.Function(new AST.MethodContent(AST.ReadOnly, "mirror", new AST.CombinedArgs(List.empty, List.empty)), List(new AST.Param("mirror", new AST.ThisOfType)), false, None))))
+
+  val allTraits: List[ITypeClass] = List(Hashable, Partial).map(new ITypeClass(_))
+  val actorTraits = new ITypeClass(Actor) :: allTraits
 }

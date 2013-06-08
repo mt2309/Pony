@@ -28,7 +28,7 @@ final class CompilationUnit(val absolutePath: String, stage: Int) {
   val typeScope: ITypeScope = iTyped.map(_.types).flatten.toMap
 
   private def loadDir: Seq[(Filename, FileContents)] = {
-    for (file <- getFilesInDirectory(new File(absolutePath))) yield (file.getAbsolutePath -> io.Source.fromFile(file).mkString)
+    for (file <- getFilesInDirectory(new File(absolutePath))) yield file.getAbsolutePath -> io.Source.fromFile(file).mkString
   }
 
   private def getFilesInDirectory(file:File):Seq[File] = {

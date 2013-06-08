@@ -56,9 +56,9 @@ sealed abstract class IPonyClass(val na: TypeId, val formalArgs: IFormalArgs, va
   override def isSubType(that: IModuleMember): Boolean = ???
 
   override def getVariables: Map[ID, OfType] = {
-    val fields = typeBody.body.filter(_._2.isInstanceOf[Field]).map(t => t._1 -> t._2.asInstanceOf[Field].ofType)
+    val fields: Map[ID, OfType] = typeBody.body.filter(_._2.isInstanceOf[Field]).map(t => t._1 -> t._2.asInstanceOf[Field].ofType)
 
-    fields ++ is.getVariables
+    ITyperHelper.reduceVariables(List(fields,is.getVariables))
   }
 
 }

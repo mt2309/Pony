@@ -67,7 +67,9 @@ final case class Is(list: List[TypeClass]) extends AST
 final case class DeclareMap(map: List[PonyMap]) extends AST
 final case class PonyMap(from:ID, to: ID) extends AST
 
-final case class OfType(typeList: Set[TypeElement]) extends AST
+abstract class OfType extends AST
+final case class ConcreteOfType(typeList: Set[TypeElement]) extends OfType
+final class ThisOfType extends OfType
 
 final case class TypeBody(body: Map[ID,BodyContent]) extends AST
 

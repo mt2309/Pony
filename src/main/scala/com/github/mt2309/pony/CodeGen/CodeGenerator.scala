@@ -1,10 +1,10 @@
 package com.github.mt2309.pony.CodeGen
 
-import com.github.mt2309.pony.Typer.{TModuleMember, TypedModule}
-import com.github.mt2309.pony.Common.{TypeId, FileContents}
+import com.github.mt2309.pony.Common.TypeId
 
-import org.jllvm.{LLVMConstant, LLVMInstructionBuilder, LLVMModule, LLVMContext}
 import com.github.mt2309.pony.CompilationUnit.CompilationUnit
+
+import com.github.mt2309.pony.Typer._
 
 /**
  * User: mthorpe
@@ -16,9 +16,21 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
   val modules: IndexedSeq[TypedModule] = units.map(_.typeIt).flatten
 
   def codeGen(): Unit = {
-    val moduleCount = modules.map(_.classes.size).sum
+    val classes: IndexedSeq[(TypeId, TModuleMember, Int)] = (modules.map(_.classes).flatten ++ tPrimitiveTypes.map(t => t.typename -> t)).zipWithIndex.map(t => (t._1._1, t._1._2, t._2))
 
-    val classes: IndexedSeq[(TypeId, TModuleMember)] = modules.map(_.classes).flatten
+    val longArraySize = (classes.size / 64) + 1
+
+    for (clazz <- classes) {
+      println(s"unsigned long * ${clazz._1}_id")
+    }
+
+    println(s"\n\nvoid initialise()\n{\nclazz_set_size = $longArraySize;")
+
+    for (clazz <- classes) {
+      println(s"${clazz._1}_id = initialise_bit_set(${clazz._3});")
+    }
+
+    println("}")
 
 
   }

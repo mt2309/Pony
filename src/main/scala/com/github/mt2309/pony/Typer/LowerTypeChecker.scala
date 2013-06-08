@@ -31,8 +31,16 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
         val traitVars = tIs.getVariables
         new TActor(  c.n, checkIFormal(c.f), tIs, checkTypeBody(c.t)(scope.updateScope(traitVars, this)(m.pos))).setPos(m.pos)
       }
-      case c:IObject => new TObject(c.n, checkIFormal(c.f), checkIs(c.i), checkTypeBody(c.t)).setPos(m.pos)
-      case c:ITrait => new TTrait(  c.n, checkIFormal(c.f), checkIs(c.i), checkTypeBody(c.t)).setPos(m.pos)
+      case c:IObject => {
+        val tIs = checkIs(c.i)
+        val traitVars = tIs.getVariables
+        new TObject(  c.n, checkIFormal(c.f), tIs, checkTypeBody(c.t)(scope.updateScope(traitVars, this)(m.pos))).setPos(m.pos)
+      }
+      case c:ITrait => {
+        val tIs = checkIs(c.i)
+        val traitVars = tIs.getVariables
+        new TTrait(  c.n, checkIFormal(c.f), tIs, checkTypeBody(c.t)(scope.updateScope(traitVars, this)(m.pos))).setPos(m.pos)
+      }
       case EmptyType(name) => throw new EmptyTypeFound(s"Empty type $name found where it should not be")(m.pos, scope)
     })
 
@@ -87,8 +95,14 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
     new TPonyMap(scope.findMethod(pm.from, is), pm.to).setPos(pm.pos)
   }
 
-  def checkOf(of: OfType)(implicit scope: Scope): TOfType = {
-    new TOfType(of.typeList.map(checkTypeElement)).setPos(of.pos)
+  def checkOf(of: OfType)(implicit scope: Scope): TOfType = of match {
+    case c: ConcreteOfType => new TOfType(c.typeList.map(checkTypeElement)).setPos(of.pos)
+    case t: ThisOfType => {
+      if (scope.currentClass.currentClass.isDefined && !scope.currentClass.isStatic)
+        new TOfType(Set(new TTypeClass(scope.currentClass.currentClass.get)))
+      else
+        throw new ThisTypeOutsideClass()(t.pos)
+    }
   }
 
   private def checkTypeElement(elem: ITypeElement)(implicit scope: Scope): TTypeElement = elem match {
@@ -125,7 +139,7 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
     val ex = checkExpression(expr)
 
     // TODO: handle sub-typing relationship.
-    if (ex.extractOfType.typeList forall (ofType.typeList.contains))
+    if (ex.extractOfType.typeList forall ofType.typeList.contains)
       ex
     else
       throw new AssignmentException(s"Type error, type from assign does not match lvalue type")(expr.pos, scope)
@@ -190,36 +204,36 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
   }
 
   private def checkBlockContent(b: BlockContent)(implicit scope: Scope): (TBlockContent, Scope) = b match {
-    case Return => (new TReturn -> scope)
-    case Throw => (new TThrow -> scope)
-    case Break => (new TBreak -> scope) // TODO: Should we check if we're in a loop here
-    case Continue => (new TContinue -> scope)
+    case Return => new TReturn -> scope
+    case Throw => new TThrow -> scope
+    case Break => new TBreak -> scope // TODO: Should we check if we're in a loop here
+    case Continue => new TContinue -> scope
     case b:Block => checkBlock(b) -> scope
     case v: VarDec => checkVarDec(v)
     case Match(list, cases) => {
-      (new TMatch(list.map(checkExpression), cases.map(checkCaseBlock)).setPos(b.pos) -> scope)
+      new TMatch(list.map(checkExpression), cases.map(checkCaseBlock)).setPos(b.pos) -> scope
     }
     case DoLoop(block, whileExpr) => {
-      (new TDoLoop(checkBlock(block), checkBooleanExpr(whileExpr)).setPos(b.pos) -> scope)
+      new TDoLoop(checkBlock(block), checkBooleanExpr(whileExpr)).setPos(b.pos) -> scope
     }
     case WhileLoop(whileExpr, block) => new TWhileLoop(checkBooleanExpr(whileExpr), checkBlock(block)).setPos(b.pos) -> scope
     case ForLoop(forVars, inExpr, block) => {
       val fV = checkList(forVars, checkForVar)
-      (new TForLoop(fV._1, checkExpression(inExpr), checkBlock(block)(fV._2)).setPos(b.pos) -> scope)
+      new TForLoop(fV._1, checkExpression(inExpr), checkBlock(block)(fV._2)).setPos(b.pos) -> scope
     }
     case Conditional(condList, elseBlock) => {
-      (new TConditional(condList.map(t => checkBooleanExpr(t._1) -> checkBlock(t._2)), elseBlock.map(checkBlock)).setPos(b.pos) -> scope)
+      new TConditional(condList.map(t => checkBooleanExpr(t._1) -> checkBlock(t._2)), elseBlock.map(checkBlock)).setPos(b.pos) -> scope
     }
     case Assignment(lValues, optExpr) => {
       val lV = checkList(lValues, checkLValue)
-      (new TAssignment(lV._1, optExpr.map(checkExpression(_)(lV._2))).setPos(b.pos) -> lV._2)
+      new TAssignment(lV._1, optExpr.map(checkExpression(_)(lV._2))).setPos(b.pos) -> lV._2
     }
   }
 
   private def checkList[J, K <: Typer](list: List[J], f: (J, Scope) => (K, Scope))(implicit scope: Scope): (List[K], Scope) = {
     val ret = recList(list, f)
     val sc = if (ret.isEmpty) scope else ret.last.scope
-    (ret -> sc)
+    ret -> sc
   }
 
   private def recList[J,K <: Typer](list: List[J], f: (J, Scope) => (K, Scope))(implicit scope: Scope): List[K] = list match {
@@ -233,18 +247,18 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
   def checkLValue(l: LValue, scope: Scope): (TLValue, Scope) = l match {
     case LValueVar(nVar) => {
       val varDec = checkVarDec(nVar)(scope)
-      (new TLValueVar(varDec._1)(varDec._2).setPos(l.pos) -> varDec._2)
+      new TLValueVar(varDec._1)(varDec._2).setPos(l.pos) -> varDec._2
     }
     case LValueCommand(command) => {
       implicit val sc = scope
-      (new TLValueCommand(checkCommand(command)).setPos(l.pos) -> scope)
+      new TLValueCommand(checkCommand(command)).setPos(l.pos) -> scope
     }
   }
 
   def checkVarDec(nVar: VarDec)(implicit scope: Scope): (TVarDec, Scope) = {
     val of = nVar.ofType.map(checkOf).getOrElse(throw new TyperInferenceException(nVar.pos, scope))
     val sc = scope.updateScope(nVar.id, of)(nVar.pos)
-    (new TVarDec(nVar.id, of, nVar.assign.map(checkExpression(_)(sc)))(sc) -> sc)
+    new TVarDec(nVar.id, of, nVar.assign.map(checkExpression(_)(sc)))(sc) -> sc
   }
 
   def checkBooleanExpr(expr: Expr)(implicit scope: Scope): TExpr = {
@@ -279,7 +293,7 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
 
   private def checkCaseVar(caseVar: CaseVar)(implicit scope: Scope): (TCaseVar, Scope) = {
     val forVar = checkForVar(caseVar.forVar, scope)
-    (new TCaseVar(caseVar.expr.map(checkExpression(_)(forVar._2)), forVar._1) -> forVar._2)
+    new TCaseVar(caseVar.expr.map(checkExpression(_)(forVar._2)), forVar._1) -> forVar._2
   }
 
   private def checkForVar(forVar: ForVar, scope: Scope): (TForVar, Scope) = {

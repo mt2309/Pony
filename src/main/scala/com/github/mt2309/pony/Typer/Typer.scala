@@ -119,7 +119,7 @@ final case class TOfType(typeList: Set[TTypeElement])(implicit val scope: Scope)
 
   def isSubType(that: TOfType): Boolean = {
     (for (t <- this.typeList) yield {
-      (for (tt <- that.typeList) yield (tt == t || t.isSubType(tt))).reduce(_ || _)
+      (for (tt <- that.typeList) yield tt == t || t.isSubType(tt)).reduce(_ || _)
     }).reduce(_ && _)
   }
 

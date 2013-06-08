@@ -8,6 +8,7 @@ import com.github.mt2309.pony.AST.Actor
 import com.github.mt2309.pony.AST.Object
 import com.github.mt2309.pony.AST.Declare
 import com.github.mt2309.pony.AST.Primitive
+import com.github.mt2309.pony.ImplicitTraits
 
 /**
  * User: mthorpe
@@ -21,7 +22,7 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
   private def pullInTypesModule(pre: PreTypedModule): ITypedModule = {
     val classes: Map[TypeId, IModuleMember] = pre.classes.map(c => c._1 -> pullInTypes(c._2)(pre.scope, pre.imports, pre.filename))
 
-    val notInThisModule: Set[PreTypedModule] = modules.filterNot(b => (b.filename == pre.filename))
+    val notInThisModule: Set[PreTypedModule] = modules.filterNot(b => b.filename == pre.filename)
     val more = notInThisModule.map(t => t.scope).flatten
 
     val extraScope: Map[TypeId, IModuleMember] = {
@@ -47,12 +48,12 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
     val i = ITypeChecker.lookUp(m)
 
     val res = i.getOrElse(m match {
-      case d:Declare => new IDeclare(d.name, pullInIs(d.is), d.declareMap)
-      case Actor(name, formal, is, body) => new IActor(name, pullInFormal(formal), pullInIs(is), body)
-      case Object(name, formal, is, body, static) => new IObject(name, pullInFormal(formal), pullInIs(is), body, static)
+      case d:Declare => new IDeclare(d.name, pullInIs(d.is, false), d.declareMap)
+      case Actor(name, formal, is, body) => new IActor(name, pullInFormal(formal), pullInIs(is, true), body)
+      case Object(name, formal, is, body, static) => new IObject(name, pullInFormal(formal), pullInIs(is, false), body, static)
       case Primitive(name) => new IPrimitive(name)
-      case Trait(name, formal, is, body) => new ITrait(name, pullInFormal(formal), pullInIs(is), body)
-      case Type(name, of, is) => new IType(name, pullInOf(of), pullInIs(is))
+      case Trait(name, formal, is, body) => new ITrait(name, pullInFormal(formal), pullInIs(is, false), body)
+      case Type(name, of, is) => new IType(name, pullInOf(of), pullInIs(is, false))
     })
 
     if (i.isEmpty) ITypeChecker.store(m, res)
@@ -60,8 +61,9 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
     res
   }
 
-  private def pullInOf(of: OfType)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits, filename: Filename): IOfType = {
-    new IOfType(of.typeList.map(pullInTypeElement))
+  private def pullInOf(of: OfType)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits, filename: Filename): IOfType = of match {
+    case c: ConcreteOfType => new IOfType(c.typeList.map(pullInTypeElement))
+    case t: ThisOfType => throw new ThisTypeOutsideClass()(t.pos)
   }
 
   private def pullInTypeElement(elem: TypeElement)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits, filename: Filename): ITypeElement = {
@@ -85,8 +87,9 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
     new ITypeClass(modMember, clazz.mode, clazz.formalArgs).setPos(clazz.pos)
   }
 
-  private def pullInIs(is: Is)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits, filename: Filename): IIs = {
-    new IIs(is.list.map(pullInTypeClass)).setPos(is.pos)
+  private def pullInIs(is: Is, isActor: Boolean)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits, filename: Filename): IIs = {
+    val extraTraits = if (isActor) ImplicitTraits.actorTraits else ImplicitTraits.allTraits
+    new IIs(is.list.map(pullInTypeClass) ++ extraTraits).setPos(is.pos)
   }
 
 }

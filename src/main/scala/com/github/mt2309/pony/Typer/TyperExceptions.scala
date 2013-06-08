@@ -22,6 +22,7 @@ final class DuplicateTypeException(message: String)(implicit pos: Position) exte
 abstract class TyperException(message: String)(implicit pos: Position, scope: Scope) extends Exception(s"$message at $pos in ${scope.filename}")
 final class PrimitiveFound(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)
 final class EmptyTypeFound(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)
+final class ThisTypeOutsideClass(implicit pos: Position) extends TopTypeException("this.type found outside of a class")
 
 final class TypeClassNotFoundException(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)
 final class VariableNotFoundException(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)

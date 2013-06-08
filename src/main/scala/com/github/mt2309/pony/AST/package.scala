@@ -8,5 +8,5 @@ package com.github.mt2309.pony
 package object AST {
 
   final val uVoid = new TypeClass("Void")("Predef")
-  final val voidOfType = new OfType(Set(uVoid))
+  final val voidOfType = new ConcreteOfType(Set(uVoid))
 }

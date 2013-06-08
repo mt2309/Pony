@@ -15,7 +15,7 @@ import annotation.tailrec
 final case class ClassData(currentClass: Option[IModuleMember] = None, isStatic: Boolean = false)
 
 final case class Scope(typeScope: ITypeScope = primScope,
-                       imports: CompilationUnits = (new QualifiedCompilationUnits(Map.empty) -> new UnqualifiedCompilationUnits(Set.empty)),
+                       imports: CompilationUnits = new QualifiedCompilationUnits(Map.empty) -> new UnqualifiedCompilationUnits(Set.empty),
                        varScope: VariableScope = Map.empty, // Could include constants here: PI, E etc?
                        currentClass: ClassData = new ClassData,
                        filename: Filename = "Primitive") extends NotNull
@@ -24,7 +24,7 @@ final case class Scope(typeScope: ITypeScope = primScope,
     if (varScope.contains(id)) {
       throw new VariableShadowingException(s"Variable $id, of type $of shadows variable with type ${this.varScope.get(id)}")(pos, this)
     }
-    val cp: Scope = this.copy(varScope = (this.varScope + (id -> of)))
+    val cp: Scope = this.copy(varScope = this.varScope + (id -> of))
     cp
   }
 
@@ -103,7 +103,7 @@ final case class Scope(typeScope: ITypeScope = primScope,
       }
     }
 
-    val sizes = for (m <- methList) yield (m -> methodExtract(m))
+    val sizes = for (m <- methList) yield m -> methodExtract(m)
     val fst = sizes.head
     for (s <- sizes) {
       if (s._2._1 != fst._2._1 || s._2._2 != fst._2._2)
