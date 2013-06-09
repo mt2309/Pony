@@ -9,39 +9,41 @@ import scala.util.parsing.input.Position
  * Date: 11/05/2013
  * Time: 16:30
  */
-final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
+final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
 
   def typeCheck: Set[TypedModule] = {topTypes.map(checkModule)}
 
-  private def checkModule(module: ITypedModule): TypedModule = {
-    new TypedModule(module.imports, module.types.map(c => c._1 -> checkClass(c._2, module.scope)))(module.scope)
+  private def checkModule(module: PreTypedModule): TypedModule = {
+    new TypedModule(module.imports, module.classes.map(c => c._1 -> checkClass(c._2, module.scope)))(module.scope)
   }
 
-  private def checkClass(m: IModuleMember, scope: Scope): TModuleMember = {
+  private def checkClass(m: ModuleMember, scope: Scope): TModuleMember = {
     implicit val sc = scope.setClass(Some(m))
 
     val cached = TyperHelper.lookupModule(m)
 
     val res = cached.getOrElse(m match {
-      case IPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found where it should not be")(m.pos, scope)
-      case IDeclare(name, is, declareMap) => new TDeclare(name, checkIs(is), checkDeclareMap(declareMap, is)).setPos(m.pos)
-      case t:IType => new TType(t.typename, checkOf(t.ofType), checkIs(t.is))
-      case c:IActor => {
+      case Primitive(name) => throw new PrimitiveFound(s"Primitive $name found where it should not be")(m.pos, scope)
+      case Declare(name, is, declareMap) => {
+        val i = checkIs(is)
+        new TDeclare(name, i, checkDeclareMap(declareMap, i)).setPos(m.pos)
+      }
+      case t:Type => new TType(t.typeName, checkOf(t.ofType), checkIs(t.is))
+      case c:Actor => {
         val tIs = checkIs(c.i)
         val traitVars = tIs.variables
         new TActor(  c.n, checkIFormal(c.f), tIs, checkTypeBody(c.t)(scope.updateScope(traitVars, this)(m.pos))).setPos(m.pos)
       }
-      case c:IObject => {
+      case c:Object => {
         val tIs = checkIs(c.i)
         val traitVars = tIs.variables
         new TObject(  c.n, checkIFormal(c.f), tIs, checkTypeBody(c.t)(scope.updateScope(traitVars, this)(m.pos))).setPos(m.pos)
       }
-      case c:ITrait => {
+      case c:Trait => {
         val tIs = checkIs(c.i)
         val traitVars = tIs.variables
         new TTrait(  c.n, checkIFormal(c.f), tIs, checkTypeBody(c.t)(scope.updateScope(traitVars, this)(m.pos))).setPos(m.pos)
       }
-      case EmptyType(name) => throw new EmptyTypeFound(s"Empty type $name found where it should not be")(m.pos, scope)
     })
 
     TyperHelper.updateModules(m, res)
@@ -49,31 +51,15 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
     res
   }
 
-  private def checkTypeClass(typeclass: ITypeClass)(implicit scope: Scope): TTypeClass = {
-
-    val lookup = scope
-
-    new TTypeClass(typeclass.iType, checkMode(typeclass.mode), checkFormal(typeclass.formalArgs)).setPos(typeclass.pos)
-  }
-
-  private def checkIFormal(formal: IFormalArgs)(implicit scope: Scope): TFormalArgs = {
+  private def checkIFormal(formal: FormalArgs)(implicit scope: Scope): TFormalArgs = {
     formal.map(checkTypeClass)
   }
 
-  private def checkIs(is: IIs)(implicit scope: Scope): TIs = {
+  private def checkIs(is: Is)(implicit scope: Scope): TIs = {
     val cached = TyperHelper.lookupIs(is)
 
     val res = cached.getOrElse(new TIs(is.list.map(checkTypeClass)).setPos(is.pos))
     TyperHelper.updateIs(is, res)
-
-    res
-  }
-
-  private def checkOf(of: IOfType)(implicit scope: Scope): TOfType = {
-    val cached = TyperHelper.lookupOf(of)
-
-    val res = cached.getOrElse(new TOfType(of.typeSet.map(checkTypeElement)).setPos(of.pos))
-    TyperHelper.updateOfType(of, res)
 
     res
   }
@@ -90,38 +76,28 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
     res.asInstanceOf[TTypeClass]
   }
 
-  private def checkDeclareMap(decMap: DeclareMap, is: IIs)(implicit scope: Scope): TDeclareMap = {
+  private def checkDeclareMap(decMap: DeclareMap, is: TIs)(implicit scope: Scope): TDeclareMap = {
     new TDeclareMap(decMap.map.map(checkPonyMap(_, is))).setPos(decMap.pos)
   }
 
-  private def checkPonyMap(pm: PonyMap, is: IIs)(implicit scope: Scope): TPonyMap = {
-    new TPonyMap(scope.findMethod(pm.from, is), pm.to).setPos(pm.pos)
+  private def checkPonyMap(pm: PonyMap, is: TIs)(implicit scope: Scope): TPonyMap = {
+    new TPonyMap(scope.findMethod(pm.from, is)(pm.pos), pm.to).setPos(pm.pos)
   }
 
-  def checkOf(of: OfType)(implicit scope: Scope): TOfType = of match {
-    case c: ConcreteOfType => new TOfType(c.typeList.map(checkTypeElement)).setPos(of.pos)
+  def checkOf(of: OfType)(implicit scope: Scope): Option[TOfType] = of match {
+    case c: ConcreteOfType => Some(new TOfType(c.typeList.map(checkTypeElement)).setPos(of.pos))
     case t: ThisOfType => {
       if (scope.currentClass.currentClass.isDefined && !scope.currentClass.isStatic)
-        new TOfType(Set(new TTypeClass(scope.currentClass.currentClass.get)))
+        None
       else
         throw new ThisTypeOutsideClass()(t.pos)
     }
   }
 
-  private def checkTypeElement(elem: ITypeElement)(implicit scope: Scope): TTypeElement = elem match {
-    case IPartialType(clazz) => new TPartialType(checkTypeClass(clazz)).setPos(elem.pos)
-    case t: ITypeClass => checkTypeClass(t)
-    case l: ILambda => checkLambda(l)
-  }
-
-  private def checkTypeElement(element: TypeElement)(implicit scope: Scope): TTypeElement = element match {
-    case PartialType(name) => new TPartialType(checkTypeClass(name)).setPos(element.pos)
+  private def checkTypeElement(elem: TypeElement)(implicit scope: Scope): TTypeElement = elem match {
+    case PartialType(clazz) => new TPartialType(checkTypeClass(clazz)).setPos(elem.pos)
     case t: TypeClass => checkTypeClass(t)
     case l: Lambda => checkLambda(l)
-  }
-
-  private def checkLambda(l: ILambda)(implicit scope: Scope): TLambda = {
-    new TLambda(checkMode(l.mode), checkArgs(l.args), checkParams(l.result), l.throws, l.block.map(checkBlock)).setPos(l.pos)
   }
 
   private def checkLambda(l: Lambda)(implicit scope: Scope): TLambda = {

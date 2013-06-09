@@ -1,10 +1,9 @@
 package com.github.mt2309.pony.AST
 
 import com.github.mt2309.pony.Common._
-import scala.util.parsing.input.{Position, Positional}
+import scala.util.parsing.input.Positional
 
 import scala.language.implicitConversions
-import com.github.mt2309.pony.Typer
 
 /**
  * User: mthorpe
@@ -24,7 +23,7 @@ sealed abstract class ModuleMember(val typeName: TypeId)(implicit val fileName: 
 
 final case class Primitive(name: TypeId) extends ModuleMember(name)(primitiveFilename) with AST
 final case class Declare(name: TypeId, is: Is, declareMap: DeclareMap)(implicit val filename: Filename) extends ModuleMember(name) with AST
-final case class Type(n: TypeId, ofType: OfType, is: Is)(implicit val filename: Filename) extends ModuleMember(n) with AST
+final case class Type(override val typeName: TypeId, ofType: OfType, is: Is)(implicit val filename: Filename) extends ModuleMember(typeName) with AST
 
 sealed abstract class
 PonyParserClass(val name: TypeId, val formalArgs: FormalArgs, val is:Is, val typeBody: TypeBody)(implicit val filename: Filename)

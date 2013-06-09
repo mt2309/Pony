@@ -2,16 +2,11 @@ package com.github.mt2309.pony
 
 import com.github.mt2309.pony.AST.{TypeClass, Param, Arg}
 import com.github.mt2309.pony.CompilationUnit.{UnqualifiedCompilationUnits, QualifiedCompilationUnits}
-import Typer.{IModuleMember, TModuleMember}
+import Typer.TModuleMember
 
 import scala.language.implicitConversions
 
 
-
-
-
-// This is a collection of types we will enforce through the compiler
-// Would be pretty cool to assert that `TypeId` always starts with a capital letter
 package object Common {
 
   type TypeId = String
@@ -43,5 +38,5 @@ package object Common {
     }
   }
 
-  type ITypeScope = Map[TypeId, IModuleMember]
+  type ITypeScope = Map[TypeId, TModuleMember]
 }

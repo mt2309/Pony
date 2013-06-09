@@ -12,7 +12,7 @@ import annotation.tailrec
  * Time: 21:36
  */
 
-final case class ClassData(currentClass: Option[IModuleMember] = None, isStatic: Boolean = false)
+final case class ClassData(currentClass: Option[ModuleMember] = None, isStatic: Boolean = false)
 
 final case class Scope(typeScope: ITypeScope = primScope,
                        imports: CompilationUnits = new QualifiedCompilationUnits(Map.empty) -> new UnqualifiedCompilationUnits(Set.empty),
@@ -29,24 +29,25 @@ final case class Scope(typeScope: ITypeScope = primScope,
   }
 
   @tailrec
-  def updateScope(varMap: Map[ID, OfType], lower: LowerTypeChecker)(implicit pos: Position): Scope = {
+  def updateScope(varMap: Map[ID, TOfType], lower: LowerTypeChecker)(implicit pos: Position): Scope = {
     if (varMap.isEmpty)
       this
     else
-      this.updateScope(varMap.head._1, lower.checkOf(varMap.head._2)(this)).updateScope(varMap.tail, lower)
+      this.updateScope(varMap.head._1, varMap.head._2).updateScope(varMap.tail, lower)
   }
 
   def updateScope(typeId: TypeId)(implicit pos: Position): Scope = {
     if (typeScope.contains(typeId)) {
       throw new TypeShadowingException(s"Type $typeId, shadows type defined at ${this.typeScope(typeId)}")(pos, this)
     }
-    else
-      this.copy(typeScope = typeScope + (typeId -> new EmptyType(typeId)(filename).setPos(pos)))
+    else {
+      this.copy(typeScope = typeScope + (typeId -> new EmptyType(typeId)(this).setPos(pos)))
+    }
   }
 
   def mergeScope(that: Scope): Scope = this.copy(varScope = varScope ++ that.varScope)
 
-  def setClass(optClazz: Option[IModuleMember]) = this.copy(currentClass = currentClass.copy(currentClass = optClazz))
+  def setClass(optClazz: Option[ModuleMember]) = this.copy(currentClass = currentClass.copy(currentClass = optClazz))
 
 
   def search(t: TypeClass): TModuleMember = {
@@ -58,17 +59,21 @@ final case class Scope(typeScope: ITypeScope = primScope,
 
   def search(t: TTypeClass): TModuleMember = t.moduleMember
 
-  def search(m: ModuleMember): IModuleMember = search(m.typeName)(m.pos)
+  def search(m: ModuleMember): TModuleMember = search(m.typeName)(m.pos)
 
-  def checkIsList(i: IIs)(implicit pos: Position): Boolean = {
+  def checkIsList(i: Is)(implicit pos: Position): Boolean = {
     for (mem <- i.list) {
-      search(mem.iType.name)
+      search(mem.name)
     }
 
     true
   }
 
-  def findMethod(id: ID, of: TOfType)(implicit pos: Position): BodyContent = {
+  def findMethod(id: ID, is: TIs)(implicit pos: Position): TBodyContent = {
+    is.methods.getOrElse(id, throw new MethodNotFoundException(id, this.filename)(pos, this))
+  }
+
+  def findMethod(id: ID, of: TOfType)(implicit pos: Position): TBodyContent = {
     if (of.typeList.size == 0) throw new UntypedListException(id)(pos, this)
     val clazzList: Set[TModuleMember] = for (t <- of.typeList) yield t match {
       case p: TPartialType => search(p.typeclass)
@@ -77,30 +82,12 @@ final case class Scope(typeScope: ITypeScope = primScope,
       case TPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")(pos, this)
     }
 
-    val methList: Set[BodyContent] = for (c <- clazzList) yield c match {
-      case IPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")(pos, this)
+    val methList: Set[TBodyContent] = for (c <- clazzList) yield c match {
+      case TPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")(pos, this)
       case EmptyType(name) => throw new EmptyTypeFound(s"Empty type $name found where it should not be")(pos, this)
-      case IActor(name, _, is, t) => {
-        val body = t.body.get(id)
-        body.getOrElse(findMethod(id, is)) //throw new MethodNotFoundException(id, name)(pos, this))
-      }
-      case IObject(_, _, is, t, _) => {
-        val body = t.body.get(id)
-        body.getOrElse(findMethod(id, is))
-      }
-      case ITrait(_, _, is, t) => {
-        val body = t.body.get(id)
-        body.getOrElse(findMethod(id, is))
-      }
-      case IDeclare(_, is, map) => {
-        val declareID: ID = map.map.find(_.to == id).map(_.from).getOrElse(id)
-        findMethod(declareID, is)
-      }
-      case IType(_, o, is) => {
-        val oBody = findMethod(id, o)
-        val body = findMethod(id, is)
-        ???
-      }
+      case p: PonyClass => p.methods.getOrElse(id, throw new MethodNotFoundException(id, p.name)(pos, this))
+      case t: TDeclare => t.methods.getOrElse(id, throw new MethodNotFoundException(id, t.name)(pos, this))
+      case t: TType => t.methods.getOrElse(id, throw new MethodNotFoundException(id, t.name)(pos, this))
     }
 
     val sizes = for (m <- methList) yield m -> methodExtract(m)
@@ -114,22 +101,16 @@ final case class Scope(typeScope: ITypeScope = primScope,
   }
 
   // Length of inputs args, length of output args
-  def methodExtract(b: BodyContent): (Int, Int) = b match {
-    case Field(name, ofType, expr) => (0, 1)
-    case Delegate(name, ofType) => (0, 1)
-    case Constructor(contents, throws, block) => (contents.combinedArgs.args.length, 1)
-    case Ambient(contents, throws, block) => (contents.combinedArgs.args.length, 0)
-    case Function(contents, results, throws, block) => (contents.combinedArgs.args.length, results.length)
-    case Message(contents, block) => (contents.combinedArgs.args.length, 0)
+  def methodExtract(b: TBodyContent): (Int, Int) = b match {
+    case TField(name, ofType, expr) => (0, 1)
+    case TDelegate(name, ofType) => (0, 1)
+    case TConstructor(contents, throws, block) => (contents.combinedArgs.args.length, 1)
+    case TAmbient(contents, throws, block) => (contents.combinedArgs.args.length, 0)
+    case TFunction(contents, results, throws, block) => (contents.combinedArgs.args.length, results.length)
+    case TMessage(contents, block) => (contents.combinedArgs.args.length, 0)
   }
 
-  def findMethod(id: ID, is: IOfType): BodyContent = ???
-
-  def findMethod(id: ID, is: IIs): BodyContent = {
-    ???
-  }
-
-  def search(t: TypeId)(implicit pos: Position): IModuleMember = typeScope.getOrElse(t, throw new TypeNotFoundException(t))
+  def search(t: TypeId)(implicit pos: Position): TModuleMember = typeScope.getOrElse(t, throw new TypeNotFoundException(t))
 
   def searchID(i: ID)(implicit pos: Position): TOfType = {
     varScope.getOrElse(i, throw new VariableNotFoundException(s"$i not found")(pos, this))

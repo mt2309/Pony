@@ -12,7 +12,7 @@ import Typer._
  */
 package object Typer {
 
-  type IFormalArgs = List[ITypeClass]
+//  type IFormalArgs = List[ITypeClass]
   type TFormalArgs = List[TTypeClass]
 
   type TArgs = List[TArg]
@@ -20,18 +20,20 @@ package object Typer {
 
   val pScope = new Scope
 
-  val void: IPrimitive = new IPrimitive("Void")
+  val void: TPrimitive = new TPrimitive("Void")(pScope)
 
-  val bool: IPrimitive = new IPrimitive("Boolean")
-  val pInt: IPrimitive = new IPrimitive("Int")
-  val pDouble: IPrimitive = new IPrimitive("Double")
-  val pUInt: IPrimitive = new IPrimitive("UInt")
-  val pChar: IPrimitive = new IPrimitive("Char")
+  val bool: TPrimitive = new TPrimitive("Boolean")(pScope)
+  val pInt: TPrimitive = new TPrimitive("Int")(pScope)
+  val pDouble: TPrimitive = new TPrimitive("Double")(pScope)
+  val pUInt: TPrimitive = new TPrimitive("UInt")(pScope)
+  val pChar: TPrimitive = new TPrimitive("Char")(pScope)
+  val pString: TPrimitive = new TPrimitive("String")(pScope)
 
-  val boolOfType = new TOfType(Set(bool.toTPrim))(pScope)
-  val intOfType = new TOfType(Set(pInt.toTPrim))(pScope)
-  val doubleOfType = new TOfType(Set(pDouble.toTPrim))(pScope)
-  val numericOfType = new TOfType(Set(pInt.toTPrim, pDouble.toTPrim, pUInt.toTPrim))(pScope)
+  val boolOfType = new TOfType(Set(bool))(pScope)
+  val intOfType = new TOfType(Set(pInt))(pScope)
+  val stringOfType = new TOfType(Set(pString))(pScope)
+  val doubleOfType = new TOfType(Set(pDouble))(pScope)
+  val numericOfType = new TOfType(Set(pInt, pDouble, pUInt))(pScope)
 
   // this.type - TODO: incomplete
   val thisOfType = new TOfType(Set())(pScope)
@@ -40,9 +42,9 @@ package object Typer {
   val primMap: Map[TypeId, AST.ModuleMember] = primitiveTypes.map(t => t.typeName -> t).toMap
 
   val tVoid = new TPrimitive("Void")(new Scope)
-  val tPrimitiveTypes: Set[TPrimitive] = Set(pChar.toTPrim, bool.toTPrim, pInt.toTPrim, pDouble.toTPrim, pUInt.toTPrim)
+  val tPrimitiveTypes: Set[TPrimitive] = Set(pChar, bool, pInt, pDouble, pUInt)
   val primTOfType = new TOfType(tPrimitiveTypes.asInstanceOf[Set[TTypeElement]])(pScope)
-  val primScope: ITypeScope = tPrimitiveTypes.map(t => t.name -> t.toIPrim).toMap
+  val primScope: ITypeScope = tPrimitiveTypes.map(t => t.name -> t).toMap
 
   type VariableScope = Map[ID, TOfType]
 
@@ -53,18 +55,16 @@ object ImplicitTraits {
   implicit val scope = pScope
   implicit val filename = "Implicit trait"
 
-  val intOf = new AST.ConcreteOfType(Set(new AST.TypeClass("Int")))
+  val Actor: TTrait = new TTrait("Actor", List.empty, new TIs(List.empty), new TTypeBody(Map.empty))
 
-  val Actor: ITrait = new ITrait("Actor", List.empty, new IIs(List.empty), new AST.TypeBody(Map.empty))
+  val Hashable: TTrait = new TTrait("Hashable", List.empty, new TIs(List.empty),
+    new TTypeBody(Map("hash" -> new TFunction(
+      new TMethodContent(new TReadOnly, "hash", new TCombinedArgs(List.empty, List.empty)), List(new TParam("hash", intOfType)), false, Some(new TBlock(List.empty, None, None))))))
 
-  val Hashable: ITrait = new ITrait("Hashable", List.empty, new IIs(List.empty),
-    new AST.TypeBody(Map("hash" -> new AST.Function(
-      new AST.MethodContent(AST.ReadOnly, "hash", new AST.CombinedArgs(List.empty, List.empty)), List(new AST.Param("hash", intOf)), false, Some(new AST.Block(List.empty, None, None))))))
+  val Partial: TTrait = new TTrait("Partial", List.empty, new TIs(List.empty),
+    new TTypeBody(Map("mirror" -> new TFunction(
+      new TMethodContent(new TReadOnly, "mirror", new TCombinedArgs(List.empty, List.empty)), List(new TParam("mirror", thisOfType)), false, Some(new TBlock(List.empty, None, None))))))
 
-  val Partial: ITrait = new ITrait("Partial", List.empty, new IIs(List.empty),
-    new AST.TypeBody(Map("mirror" -> new AST.Function(
-      new AST.MethodContent(AST.ReadOnly, "mirror", new AST.CombinedArgs(List.empty, List.empty)), List(new AST.Param("mirror", new AST.ThisOfType)), false, Some(new AST.Block(List.empty, None, None))))))
-
-  val allTraits: List[ITypeClass] = List(Hashable, Partial).map(new ITypeClass(_))
-  val actorTraits = new ITypeClass(Actor) :: allTraits
+  val allTraits: List[TTypeClass] = List(Hashable, Partial).map(new TTypeClass(_))
+  val actorTraits = new TTypeClass(Actor) :: allTraits
 }

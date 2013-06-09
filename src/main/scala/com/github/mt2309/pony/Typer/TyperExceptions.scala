@@ -36,7 +36,7 @@ final class TypeMismatch(expected: String, got: String)(implicit pos: Position, 
 final class ThisUsedOutsideClassException(implicit pos: Position, scope: Scope) extends TyperException("This was used outside of a class")
 final class UntypedListException(msg: ID)(implicit pos: Position, scope: Scope) extends TyperException(s"Variable $msg has no type associated with it")
 
-final class ArgumentMismatchException(b: BodyContent)(implicit pos: Position, scope: Scope) extends TyperException(s"Argument length mismatch on body of name ${b.name}")
+final class ArgumentMismatchException(b: TBodyContent)(implicit pos: Position, scope: Scope) extends TyperException(s"Argument length mismatch on body of name ${b.name}")
 
 
 final class TyperInferenceException(pos: Position, scope: Scope) extends TyperException("Type inference is not enabled or working yet, please annotate with types")(pos, scope)

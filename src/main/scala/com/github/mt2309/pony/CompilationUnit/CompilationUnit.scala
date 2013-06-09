@@ -22,10 +22,7 @@ final class CompilationUnit(val absolutePath: String, stage: Int) {
   val fileList = loadDir
   val astList: Seq[(Filename, Option[Module])] = for (file <- fileList) yield file._1 -> PonyParser.parse(file)
   val typedAs: Set[PreTypedModule] = new TopTypes(astList.toSet).topLevelTypes
-  val iTyped: Set[ITypedModule] = new ITypeChecker(typedAs).typeCheck
-  val typeIt: Set[TypedModule] = new LowerTypeChecker(iTyped).typeCheck
-
-  val typeScope: ITypeScope = iTyped.map(_.types).flatten.toMap
+  val typeIt: Set[TypedModule] = new LowerTypeChecker(typedAs).typeCheck
 
   private def loadDir: Seq[(Filename, FileContents)] = {
     for (file <- getFilesInDirectory(new File(absolutePath))) yield file.getAbsolutePath -> io.Source.fromFile(file).mkString
