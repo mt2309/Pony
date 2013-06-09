@@ -33,7 +33,7 @@ package object Typer {
   val doubleOfType = new TOfType(Set(pDouble.toTPrim))(pScope)
   val numericOfType = new TOfType(Set(pInt.toTPrim, pDouble.toTPrim, pUInt.toTPrim))(pScope)
 
-  // this.type - incomplete
+  // this.type - TODO: incomplete
   val thisOfType = new TOfType(Set())(pScope)
 
   val primitiveTypes: Set[AST.ModuleMember] = Set(new AST.Primitive("Int"), new AST.Primitive("UInt"), new AST.Primitive("Char"))
@@ -58,10 +58,12 @@ object ImplicitTraits {
   val Actor: ITrait = new ITrait("Actor", List.empty, new IIs(List.empty), new AST.TypeBody(Map.empty))
 
   val Hashable: ITrait = new ITrait("Hashable", List.empty, new IIs(List.empty),
-    new AST.TypeBody(Map("hash" -> new AST.Function(new AST.MethodContent(AST.ReadOnly, "hash", new AST.CombinedArgs(List.empty, List.empty)), List(new AST.Param("hash", intOf)), false, None))))
+    new AST.TypeBody(Map("hash" -> new AST.Function(
+      new AST.MethodContent(AST.ReadOnly, "hash", new AST.CombinedArgs(List.empty, List.empty)), List(new AST.Param("hash", intOf)), false, Some(new AST.Block(List.empty, None, None))))))
 
   val Partial: ITrait = new ITrait("Partial", List.empty, new IIs(List.empty),
-    new AST.TypeBody(Map("mirror" -> new AST.Function(new AST.MethodContent(AST.ReadOnly, "mirror", new AST.CombinedArgs(List.empty, List.empty)), List(new AST.Param("mirror", new AST.ThisOfType)), false, None))))
+    new AST.TypeBody(Map("mirror" -> new AST.Function(
+      new AST.MethodContent(AST.ReadOnly, "mirror", new AST.CombinedArgs(List.empty, List.empty)), List(new AST.Param("mirror", new AST.ThisOfType)), false, Some(new AST.Block(List.empty, None, None))))))
 
   val allTraits: List[ITypeClass] = List(Hashable, Partial).map(new ITypeClass(_))
   val actorTraits = new ITypeClass(Actor) :: allTraits

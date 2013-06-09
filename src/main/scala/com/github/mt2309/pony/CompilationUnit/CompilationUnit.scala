@@ -39,8 +39,8 @@ final class CompilationUnit(val absolutePath: String, stage: Int) {
     for (f <- file.listFiles()) yield f
   }
 
-  def searchType(name: TypeId): Option[IModuleMember] = {
-    iTyped.find(t => t.types.exists(_._1 == name)).map(_.types.get(name)).flatten
+  def searchType(name: TypeId): Option[TModuleMember] = {
+    typeIt.find(t => t.classes.exists(_._1 == name)).map(_.classes.get(name)).flatten
   }
 
   def compile(output: String): Unit = {

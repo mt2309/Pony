@@ -49,14 +49,14 @@ final case class Scope(typeScope: ITypeScope = primScope,
   def setClass(optClazz: Option[IModuleMember]) = this.copy(currentClass = currentClass.copy(currentClass = optClazz))
 
 
-  def search(t: TypeClass): IModuleMember = {
-    val p: Option[IModuleMember] = primScope.get(t.name)
-    val i: Option[IModuleMember] = if (p.isDefined) p else imports.searchType(t)
+  def search(t: TypeClass): TModuleMember = {
+    val p: Option[TModuleMember] = tPrimitiveTypes.find(_.typename == t.name)
+    val i: Option[TModuleMember] = if (p.isDefined) p else imports.searchType(t)
 
     i.getOrElse(typeScope.getOrElse(t.name, throw new TypeClassNotFoundException(s"$t not found in ${t.fileName}")(t.pos, this)))
   }
 
-  def search(t: TTypeClass): IModuleMember = t.moduleMember
+  def search(t: TTypeClass): TModuleMember = t.moduleMember
 
   def search(m: ModuleMember): IModuleMember = search(m.typeName)(m.pos)
 
@@ -70,8 +70,8 @@ final case class Scope(typeScope: ITypeScope = primScope,
 
   def findMethod(id: ID, of: TOfType)(implicit pos: Position): BodyContent = {
     if (of.typeList.size == 0) throw new UntypedListException(id)(pos, this)
-    val clazzList: Set[IModuleMember] = for (t <- of.typeList) yield t match {
-      case p: TPartialType => search(p.name)
+    val clazzList: Set[TModuleMember] = for (t <- of.typeList) yield t match {
+      case p: TPartialType => search(p.typeclass)
       case t: TTypeClass => search(t)
       case l: TLambda => throw new LambdaInMethCallException(s"Lambda found in method lookup for for id $id")(pos, this)
       case TPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")(pos, this)

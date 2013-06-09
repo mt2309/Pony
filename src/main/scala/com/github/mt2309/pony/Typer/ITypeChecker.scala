@@ -78,10 +78,10 @@ final class ITypeChecker(val modules: Set[PreTypedModule]) {
     f.map(pullInTypeClass)
   }
 
-  private def pullInTypeClass(clazz: TypeClass)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits, filename: Filename): ITypeClass = {
+  private def pullInTypeClass(clazz: TypeClass)(implicit scope: Map[TypeId, ModuleMember], imports: CompilationUnits, fName: Filename): ITypeClass = {
     val modMember: IModuleMember = {
       val imp = imports.searchType(clazz)
-      imp.getOrElse(pullInTypes(scope.getOrElse(clazz.name, throw new TypeClassNotFoundException(s"$clazz not found in file ${clazz.fileName}")(clazz.pos,new Scope(filename = filename)))))
+      imp.getOrElse(pullInTypes(scope.getOrElse(clazz.name, throw new TypeClassNotFoundException(s"$clazz not found in file ${clazz.fileName}")(clazz.pos,new Scope(filename = fName)))))
     }
 
     new ITypeClass(modMember, clazz.mode, clazz.formalArgs).setPos(clazz.pos)

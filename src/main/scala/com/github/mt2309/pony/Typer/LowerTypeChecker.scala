@@ -28,17 +28,17 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
       case t:IType => new TType(t.typename, checkOf(t.ofType), checkIs(t.is))
       case c:IActor => {
         val tIs = checkIs(c.i)
-        val traitVars = tIs.getVariables
+        val traitVars = tIs.variables
         new TActor(  c.n, checkIFormal(c.f), tIs, checkTypeBody(c.t)(scope.updateScope(traitVars, this)(m.pos))).setPos(m.pos)
       }
       case c:IObject => {
         val tIs = checkIs(c.i)
-        val traitVars = tIs.getVariables
+        val traitVars = tIs.variables
         new TObject(  c.n, checkIFormal(c.f), tIs, checkTypeBody(c.t)(scope.updateScope(traitVars, this)(m.pos))).setPos(m.pos)
       }
       case c:ITrait => {
         val tIs = checkIs(c.i)
-        val traitVars = tIs.getVariables
+        val traitVars = tIs.variables
         new TTrait(  c.n, checkIFormal(c.f), tIs, checkTypeBody(c.t)(scope.updateScope(traitVars, this)(m.pos))).setPos(m.pos)
       }
       case EmptyType(name) => throw new EmptyTypeFound(s"Empty type $name found where it should not be")(m.pos, scope)
@@ -50,6 +50,9 @@ final class LowerTypeChecker(val topTypes: Set[ITypedModule]) {
   }
 
   private def checkTypeClass(typeclass: ITypeClass)(implicit scope: Scope): TTypeClass = {
+
+    val lookup = scope
+
     new TTypeClass(typeclass.iType, checkMode(typeclass.mode), checkFormal(typeclass.formalArgs)).setPos(typeclass.pos)
   }
 

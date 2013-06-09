@@ -14,22 +14,29 @@ import annotation.tailrec
 
 sealed trait Typer extends NotNull with Positional {
   def scope: Scope
-
-  def codeGen: AnyRef = ???
 }
 
 final case class PreTypedModule(imports: CompilationUnits, classes: Map[TypeId, ModuleMember])(implicit val scope: Map[TypeId, ModuleMember], val filename: Filename) extends NotNull with Positional
 
 final case class TypedModule(imports:CompilationUnits, classes: Map[TypeId, TModuleMember])(implicit val scope: Scope) extends Typer
 
-sealed abstract class TModuleMember(val name: TypeId)(implicit val scope: Scope) extends Typer
+sealed abstract class TModuleMember(val name: TypeId)(implicit val scope: Scope) extends Typer {
+  def methods: Map[ID, TBodyContent]
+  def isSubType(that: TTypeElement): Boolean
+  def variables: Map[ID, OfType]
+}
 
 final case class TPrimitive(typename: TypeId)(implicit override val scope: Scope) extends TModuleMember(typename) with TTypeElement {
   def toIPrim: IPrimitive = new IPrimitive(typename)
+
   override def isSubType(that: TTypeElement): Boolean = that match {
     case TPrimitive(name) => name == typename
     case _ => false
   }
+
+  override def variables: Map[ID, OfType] = Map.empty
+
+  override def methods = Map.empty
 
   override def equals(that: Any): Boolean = that match {
     case t:TPrimitive => this.typename == t.typename
@@ -37,10 +44,41 @@ final case class TPrimitive(typename: TypeId)(implicit override val scope: Scope
   }
 }
 
-final case class TDeclare(typename: TypeId, is: TIs, declareMap: TDeclareMap)(implicit override val scope: Scope) extends TModuleMember(typename)
-final case class TType(n: TypeId, ofType: TOfType, is: TIs)(implicit override val scope: Scope) extends TModuleMember(n)
+final case class TDeclare(typename: TypeId, is: TIs, declareMap: TDeclareMap)(implicit override val scope: Scope) extends TModuleMember(typename) {
 
-abstract class PonyClass(val na: TypeId, val formalArgs: TFormalArgs, val is:TIs, val typeBody: TTypeBody)(implicit override val scope: Scope) extends TModuleMember(na)
+  override def methods = is.methods
+
+  override def isSubType(that: TTypeElement): Boolean = ???
+
+  override def variables: Map[ID, TOfType] = ???
+}
+
+final case class TType(n: TypeId, ofType: TOfType, is: TIs)(implicit override val scope: Scope) extends TModuleMember(n) {
+  override def methods = is.methods
+
+  override def isSubType(that: TTypeElement): Boolean = ???
+
+  override def variables: Map[ID, OfType] = ???
+}
+
+abstract class PonyClass(val na: TypeId, val formalArgs: TFormalArgs, val is:TIs, val typeBody: TTypeBody)(implicit override val scope: Scope) extends TModuleMember(na) {
+
+  override def variables: Map[ID, OfType] = {
+    val fields: Map[ID, OfType] = typeBody.body.filter(_._2.isInstanceOf[Field]).map(t => t._1 -> t._2.asInstanceOf[Field].ofType)
+    val delegates: Map[ID, OfType] = typeBody.body.filter(_._2.isInstanceOf[Delegate]).map(t => t._1 -> t._2.asInstanceOf[Delegate].ofType)
+
+
+    TyperHelper.reduceVariables(List(fields, delegates, is.variables))
+  }
+
+  override def isSubType(that: TTypeElement): Boolean = ???
+
+  override def methods = {
+    val methods = typeBody.body.filterNot(b => b._2.isInstanceOf[Field] || b._2.isInstanceOf[Delegate])
+    TyperHelper.reduceMethods(List(methods, is.methods))
+  }
+}
+
 final case class TActor(n: TypeId, f: TFormalArgs, i:TIs, t: TTypeBody)(implicit override val scope: Scope)   extends PonyClass(n,f,i,t)
 final case class TTrait(n: TypeId, f: TFormalArgs, i:TIs, t: TTypeBody)(implicit override val scope: Scope)   extends PonyClass(n,f,i,t)
 final case class TObject(n: TypeId, f: TFormalArgs, i:TIs, t: TTypeBody)(implicit override val scope: Scope)  extends PonyClass(n,f,i,t)
@@ -52,29 +90,36 @@ final case class TArg(expr: Option[TExpr], ofType: Option[TOfType], assign: Opti
 
 sealed trait TTypeElement extends Typer {
   def isSubType(that: TTypeElement): Boolean
+  def name: String
 }
 
-final case class TPartialType(name: TTypeClass)(implicit val scope: Scope) extends TTypeElement {
+final case class TPartialType(typeclass: TTypeClass)(implicit val scope: Scope) extends TTypeElement {
   def isSubType(that: TTypeElement): Boolean = that match {
     case t:TPrimitive => false
-    case t:TPartialType => this.name.isSubType(t.name)
-    case t:TTypeClass => this.name.isSubType(t)
+    case t:TPartialType => this.typeclass.isSubType(t.typeclass)
+    case t:TTypeClass => this.typeclass.isSubType(t)
     case t:TLambda => false
   }
 
-  override def toString = "partial " ++ name.moduleMember.name
+  override def name = "partial_" ++ typeclass.name
+
+  override def toString = "partial " ++ typeclass.moduleMember.name
 }
-final case class TTypeClass(moduleMember: IModuleMember, mode: TMode = new TReadOnly()(pScope), formalArgs: TFormalArgs = List.empty)(implicit val scope: Scope) extends TTypeElement {
+final case class TTypeClass(moduleMember: TModuleMember, mode: TMode = new TReadOnly()(pScope), formalArgs: TFormalArgs = List.empty)(implicit val scope: Scope) extends TTypeElement {
   def isSubType(that: TTypeElement): Boolean = that match {
     case TPrimitive(name) => name == moduleMember.name
-    case t:TPartialType => this.moduleMember.isSubType(t.name.moduleMember)
-    case t:TTypeClass => this.moduleMember.isSubType(t.moduleMember)
+    case t:TPartialType => this.moduleMember.isSubType(t.typeclass)
+    case t:TTypeClass => this.moduleMember.isSubType(t)
     case t:TLambda => false
   }
 
-  def getVars: Map[ID, OfType] = moduleMember.getVariables
+  def variables: Map[ID, OfType] = moduleMember.variables
+
+  def methods: Map[ID, TBodyContent] = moduleMember.methods
 
   override def toString = moduleMember.name
+
+  override def name = moduleMember.name
 }
 final case class TLambda(mode: TMode, args: TArgs, result: TParams, throws: Boolean, block: Option[TBlock])(implicit val scope: Scope) extends TTypeElement {
   def isSubType(that: TTypeElement): Boolean = that match {
@@ -89,6 +134,8 @@ final case class TLambda(mode: TMode, args: TArgs, result: TParams, throws: Bool
     }
   }
 
+  override def name = "lambda_" ++ ArgsHelper.mangle(result)
+
   override def toString = "lambda " ++ args.toString ++ "->" ++ result.toString
 }
 
@@ -99,17 +146,20 @@ final case class TMutable(implicit override val scope: Scope)       extends TMod
 final case class TUnique(implicit override val scope: Scope)        extends TMode
 final case class TModeExpr(expr: TExpr)(implicit override val scope: Scope) extends TMode
 
-final case class TBlock(contents:List[TBlockContent], catchBlock: Option[TBlock], alwaysBlock: Option[TBlock])(implicit val scope: Scope) extends TBlockContent with Typer
+final case class TBlock(contents:List[TBlockContent], catchBlock: Option[TBlock], alwaysBlock: Option[TBlock])(implicit val scope: Scope) extends TBlockContent with Typer {
+  def codeGen: String = ???
+}
 final case class TIs(list: List[TTypeClass])(implicit val scope: Scope) extends Typer {
-  def getVariables: Map[ID, OfType] = {
-    val vars = for (tClass <- list) yield tClass.getVars
-    var m: Map[ID, OfType] = Map.empty
-    for (v <- vars; varD <- v) {
-      if (!m.contains(varD._1))
-        m += varD
-    }
+  def variables: Map[ID, OfType] = {
+    val vars = for (tClass <- list) yield tClass.variables
 
-    m
+    TyperHelper.reduceVariables(vars)
+  }
+
+  def methods: Map[ID, TBodyContent] = {
+    val bodies = for (tClass <- list) yield tClass.methods
+
+    TyperHelper.reduceMethods(bodies)
   }
 }
 final case class TDeclareMap(map: List[TPonyMap])(implicit val scope: Scope) extends Typer
@@ -123,18 +173,88 @@ final case class TOfType(typeList: Set[TTypeElement])(implicit val scope: Scope)
     }).reduce(_ && _)
   }
 
+  def mangle = {
+    val b = new StringBuilder
+
+    for (t <- typeList) b.append(s"${t.name}_")
+
+    b.toString
+  }
+
+  def size = typeList.size
+
   def intersection(that: TOfType): TOfType = ???
 }
 
 final case class TTypeBody(body: Map[ID,TBodyContent])(implicit val scope: Scope) extends Typer
 
-sealed abstract class TBodyContent(val name: ID, val isAbstract: Boolean = false)(implicit val scope: Scope) extends Typer
-final case class TField(id: ID, ofType: TOfType, expr: Option[TExpr])(implicit override val scope: Scope) extends TBodyContent(id, expr.isEmpty)
-final case class TDelegate(id: ID, ofType: TOfType)(implicit override val scope: Scope) extends TBodyContent(name = id)
-final case class TConstructor(contents: TMethodContent, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty)
-final case class TAmbient(contents: TMethodContent, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty)
-final case class TFunction(contents: TMethodContent, results: TParams, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty)
-final case class TMessage(contents: TMethodContent, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty)
+sealed abstract class TBodyContent(val name: ID, val isAbstract: Boolean = false)(implicit val scope: Scope) extends Typer  {
+  def mangle: String
+  def codeGen: String
+}
+
+final case class TField(id: ID, ofType: TOfType, expr: Option[TExpr])(implicit override val scope: Scope) extends TBodyContent(id, expr.isEmpty) {
+  override def mangle: String = if (ofType.size == 0) s"${id}_no_arguments" else s"${id}_${ofType.mangle}"
+
+  override def codeGen: String = ???
+}
+
+final case class TDelegate(id: ID, ofType: TOfType)(implicit override val scope: Scope) extends TBodyContent(name = id)  {
+  override def mangle: String = if (ofType.size == 0) s"${id}_no_arguments" else s"${id}_${ofType.mangle}"
+
+  override def codeGen: String = ???
+}
+
+final case class TConstructor(contents: TMethodContent, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty) {
+  override def mangle: String = s"${contents.id}_${ArgsHelper.mangle(contents.combinedArgs.args)}"
+
+  override def codeGen: String = block.getOrElse(throw new AbstractMethodNotImplemented("")(this.pos)).codeGen
+}
+
+final case class TAmbient(contents: TMethodContent, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty) {
+  override def mangle: String = {
+    if (contents.combinedArgs.args.size == 0)
+      s"${contents.id}_no_arguments"
+    else
+      s"${contents.id}_${ArgsHelper.mangle(contents.combinedArgs.args)}"
+  }
+
+  override def codeGen: String = block.getOrElse(throw new AbstractMethodNotImplemented("")(this.pos)).codeGen
+}
+
+final case class TFunction(contents: TMethodContent, results: TParams, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty) {
+  override def mangle: String = {
+    if (contents.combinedArgs.args.size == 0)
+      s"${contents.id}_no_arguments"
+    else
+      s"${contents.id}_${ArgsHelper.mangle(contents.combinedArgs.args)}"
+  }
+
+  override def codeGen: String = block.getOrElse(throw new AbstractMethodNotImplemented("")(this.pos)).codeGen
+}
+
+final case class TMessage(contents: TMethodContent, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty)  {
+  override def mangle: String = {
+    if (contents.combinedArgs.args.size == 0)
+      s"${contents.id}_no_arguments"
+    else
+      s"${contents.id}_${ArgsHelper.mangle(contents.combinedArgs.args)}"
+  }
+
+  override def codeGen: String = block.getOrElse(throw new AbstractMethodNotImplemented("")(this.pos)).codeGen
+}
+
+object ArgsHelper {
+  def mangle(list: TParams): String = {
+    val b = new StringBuilder
+
+    for (a <- list) b.append(s"${a.name}_")
+
+    b.take(b.length - 2)
+    b.mkString
+  }
+}
+
 
 final case class TMethodContent(mode: TMode, id:ID, combinedArgs: TCombinedArgs)(implicit val scope: Scope) extends Typer
 
@@ -288,7 +408,11 @@ object TyperHelper {
   private var isCache: Map[IIs, TIs] = Map.empty
   private var moduleCache: Map[IModuleMember, TModuleMember] = Map.empty
   private var typeclassCache: Map[TypeElement, TTypeElement] = Map.empty
+  private var methodCache: Map[BodyContent, TBodyContent] = Map.empty
 
+
+  def lookupMethod(is: BodyContent): Option[TBodyContent] = methodCache.get(is)
+  def updateMethod(is: BodyContent, tIs: TBodyContent): Unit = methodCache += is -> tIs
 
   def lookupIs(is: IIs): Option[TIs] = isCache.get(is)
   def updateIs(is: IIs, tIs: TIs): Unit = isCache += is -> tIs
@@ -302,4 +426,33 @@ object TyperHelper {
   def lookupTypeclass(t: TypeElement): Option[TTypeElement] = typeclassCache.get(t)
 
   def updateTypeclass(t: TypeElement, tt: TTypeElement): Unit = typeclassCache += t -> tt
+
+  def reduceVariables(list: List[Map[ID, OfType]]): Map[ID, OfType] = reduceVariablesHelper(list, Map.empty)
+  def reduceMethods(list: List[Map[ID, TBodyContent]]): Map[ID, TBodyContent] = reduceMethodsHelper(list, Map.empty)
+
+  @tailrec
+  private def reduceMethodsHelper(list: List[Map[ID, TBodyContent]], map: Map[ID, TBodyContent]): Map[ID, TBodyContent] = list match {
+    case x :: xs => {
+      var m = map
+      for (meth <- x) {
+        if (!m.contains(meth._1) || m(meth._1).isAbstract) m += meth
+      }
+
+      reduceMethodsHelper(xs , m)
+    }
+
+    case Nil => map
+  }
+
+  @tailrec
+  private def reduceVariablesHelper(list: List[Map[ID, OfType]], map: Map[ID, OfType]): Map[ID, OfType] = list match {
+    case x :: xs => {
+      var m = map
+      for (varD <- x) {
+        if (!m.contains(varD._1)) m += varD
+      }
+      reduceVariablesHelper(xs, m)
+    }
+    case Nil => map
+  }
 }

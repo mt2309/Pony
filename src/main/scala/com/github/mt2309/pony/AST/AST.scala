@@ -4,6 +4,7 @@ import com.github.mt2309.pony.Common._
 import scala.util.parsing.input.{Position, Positional}
 
 import scala.language.implicitConversions
+import com.github.mt2309.pony.Typer
 
 /**
  * User: mthorpe
@@ -13,9 +14,7 @@ import scala.language.implicitConversions
 
 trait PonyPos extends Positional
 
-sealed trait AST extends NotNull with PonyPos {
-  implicit def toPos: Position = this.pos
-}
+sealed trait AST extends NotNull with PonyPos
 
 final case class Module(imports:Set[Use], classes: Map[TypeId, ModuleMember]) extends AST
 
@@ -46,9 +45,7 @@ final case class Arg(expr: Option[Expr], ofType: Option[OfType], assign: Option[
 sealed abstract class TypeElement(implicit val fileName: Filename) extends AST
 final case class PartialType(typeClass: TypeClass)(implicit override val fileName: Filename) extends TypeElement with AST
 
-final case class TypeClass(name: TypeId,
-                           module:Option[TypeId] = None,
-                           mode: Mode = ReadOnly,
+final case class TypeClass(name: TypeId, module:Option[TypeId] = None, mode: Mode = ReadOnly,
                            formalArgs: FormalArgs = List.empty)(implicit override val fileName: Filename) extends TypeElement with AST {
   override def toString: String = if (module.isDefined) name ++ "::" ++ module.get else name
 }
@@ -62,18 +59,32 @@ object Mutable      extends Mode with AST
 object Unique       extends Mode with AST
 final case class ModeExpr(expr: Expr) extends Mode with AST
 
-final case class Block(contents:List[BlockContent], catchBlock: Option[Block], alwaysBlock: Option[Block]) extends BlockContent with AST
+final case class Block(contents:List[BlockContent], catchBlock: Option[Block], alwaysBlock: Option[Block]) extends BlockContent with AST {
+
+  def codeGen: String = {
+    val builder = new StringBuilder("{\n")
+
+    for (con <- contents) {builder.append(con.codeGen); builder.append("\n") }
+
+    builder.append("\n}")
+
+    builder.mkString
+  }
+}
 final case class Is(list: List[TypeClass]) extends AST
 final case class DeclareMap(map: List[PonyMap]) extends AST
 final case class PonyMap(from:ID, to: ID) extends AST
 
 abstract class OfType extends AST
-final case class ConcreteOfType(typeList: Set[TypeElement]) extends OfType
+
 final class ThisOfType extends OfType
+final case class ConcreteOfType(typeList: Set[TypeElement]) extends OfType
+
 
 final case class TypeBody(body: Map[ID,BodyContent]) extends AST
 
 sealed abstract class BodyContent(val name: ID, val isAbstract: Boolean = false, val returnType: OfType = voidOfType) extends AST
+
 final case class Field(id: ID, ofType: OfType, expr: Option[Expr]) extends BodyContent(id, expr.isEmpty, ofType) with AST
 final case class Delegate(id: ID, ofType: OfType) extends BodyContent(name = id, returnType = ofType) with AST
 final case class Constructor(contents: MethodContent, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with AST
@@ -81,18 +92,38 @@ final case class Ambient(contents: MethodContent, throws: Boolean, block: Option
 final case class Function(contents: MethodContent, results: Params, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with AST
 final case class Message(contents: MethodContent, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with AST
 
+
 final case class MethodContent(mode: Mode, id:ID, combinedArgs: CombinedArgs) extends AST
 
 final case class Expr(unary: Unary, operator: List[(Operator, Unary)]) extends AST
 
-sealed trait BlockContent extends AST
+sealed trait BlockContent extends AST {
+  def codeGen: String
+}
 
-object Return extends BlockContent with AST
-object Throw extends BlockContent with AST
-object Break extends BlockContent with AST
-object Continue extends BlockContent with AST
+object Return extends BlockContent with AST {
+  def codeGen: String = "goto return_label;\n"
+}
+object Throw extends BlockContent with AST {
+  def codeGen: String = ???
+}
+object Break extends BlockContent with AST {
+  def codeGen: String = "break;\n"
+}
+object Continue extends BlockContent with AST {
+  def codeGen: String = "continue\n;"
+}
 
-final case class VarDec(id: ID, ofType: Option[OfType], assign: Option[Expr]) extends BlockContent with AST
+final case class VarDec(id: ID, ofType: Option[OfType], assign: Option[Expr]) extends BlockContent with AST {
+  def codeGen: String = {
+    val b = new StringBuilder
+
+    b.append(s"pony_clazz * ${id} = ")
+//    b.append(assign.getOrElse(of))
+
+    b.mkString
+  }
+}
 final case class Match(list: List[Expr], cases: List[CaseBlock]) extends BlockContent with AST
 final case class DoLoop(block: Block, whileExpr: Expr) extends BlockContent with AST
 final case class WhileLoop(whileExpr: Expr, block: Block) extends BlockContent with AST

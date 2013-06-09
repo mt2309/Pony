@@ -2,7 +2,7 @@ package com.github.mt2309.pony
 
 import com.github.mt2309.pony.AST.{TypeClass, Param, Arg}
 import com.github.mt2309.pony.CompilationUnit.{UnqualifiedCompilationUnits, QualifiedCompilationUnits}
-import com.github.mt2309.pony.Typer.IModuleMember
+import Typer.{IModuleMember, TModuleMember}
 
 import scala.language.implicitConversions
 
@@ -37,7 +37,7 @@ package object Common {
   type CompilationUnits = (QualifiedCompilationUnits, UnqualifiedCompilationUnits)
 
   implicit class ImplicitCompilationOps(val c: CompilationUnits) {
-    def searchType(t: TypeClass): Option[IModuleMember] = t.module match {
+    def searchType(t: TypeClass): Option[TModuleMember] = t.module match {
       case Some(module) => c._1.lookUpType(t.name, module)(t.pos)
       case None => c._2.lookUpType(t.name)
     }

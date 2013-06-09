@@ -20,19 +20,45 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
 
     val longArraySize = classes.size / 64 + 1
 
+    val headerBuilder = new StringBuilder(CodeGenerator.headerString)
+    val sourceBuilder = new StringBuilder(CodeGenerator.sourceString)
+
+    sourceBuilder.append(s"\n\nvoid initialise(void)\n{\n\tclazz_set_size = $longArraySize;\n")
+
+    // Generate the header
     for (clazz <- classes) {
-      println(s"unsigned long * ${clazz._1}_id")
+      headerBuilder.append(s"unsigned long * ${clazz._1}_id;\n")
+      sourceBuilder.append(s"\t${clazz._1}_id = initialise_bit_set(${clazz._3});\n")
+
+      for (typebody <- clazz._2.methods) {
+        headerBuilder.append(s"pony_clazz**\n${clazz._1}_${typebody._2.mangle}(pony_clazz* this, pony_clazz** args);\n")
+      }
     }
 
-    println(s"\n\nvoid initialise()\n{\n\tclazz_set_size = $longArraySize;")
+    sourceBuilder.append("}\n\n")
 
-    for (clazz <- classes) {
-      println(s"\t${clazz._1}_id = initialise_bit_set(${clazz._3});")
+    for (clazz <- classes; typebody <- clazz._2.methods) {
+      sourceBuilder.append(s"pony_clazz**\n${clazz._1}_${typebody._2.mangle}(pony_clazz* this, pony_clazz** args)\n")
+      sourceBuilder.append(typebody._2.codeGen)
+
+      sourceBuilder.append("\n\n")
     }
 
-    println("}")
 
+    println(headerBuilder.mkString)
+    println("\n\n\n\n\n")
+    println(sourceBuilder.mkString)
 
   }
 
+}
+
+object CodeGenerator {
+
+  val headerString = {
+    "#include <stdlib.h>\n#include <stdio.h>\n#include <stdbool.h>\n\n" ++
+      "#include \"pony_class.h\"\n\n#ifndef PONY_PROGRAM_H\n#define PONY_PROGRAM_H\n\nvoid initialise(void);\nunsigned int clazz_set_size;\n\n"
+  }
+
+  val sourceString = "#include \"pony_class_ids.h\"\n\n"
 }
