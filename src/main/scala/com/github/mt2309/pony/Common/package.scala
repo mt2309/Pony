@@ -36,7 +36,7 @@ package object Common {
       case Some(module) => c._1.lookUpType(t.name, module)(t.pos)
       case None => c._2.lookUpType(t.name)
     }
-  }
 
-  type ITypeScope = Map[TypeId, TModuleMember]
+    def searchType(t: TypeId): Option[TModuleMember] = c._2.lookUpType(t)
+  }
 }

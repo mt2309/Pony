@@ -28,14 +28,32 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
     // Generate the header
     for (clazz <- classes) {
       headerBuilder.append(s"unsigned long * ${clazz._1}_id;\n")
+
+      clazz._2 match {
+        case conc: ConcreteClass => {
+          headerBuilder.append(s"pony_clazz * ${clazz._1}_construct(pony_clazz ** args);\n")
+        }
+        case _ => Unit
+      }
+
       sourceBuilder.append(s"\t${clazz._1}_id = initialise_bit_set(${clazz._3});\n")
 
+
       for (typebody <- clazz._2.methods) {
-        headerBuilder.append(s"pony_clazz**\n${clazz._1}_${typebody._2.mangle}(pony_clazz* this, pony_clazz** args);\n")
+        headerBuilder.append(s"pony_clazz** ${clazz._1}_${typebody._2.mangle}(pony_clazz* this, pony_clazz** args);\n")
       }
     }
 
     sourceBuilder.append("}\n\n")
+
+    for (clazz <- classes) {
+      clazz._2 match {
+        case conc: ConcreteClass => {
+          sourceBuilder.append(conc.defaultConstructor)
+        }
+        case _ => Unit
+      }
+    }
 
     for (clazz <- classes; typebody <- clazz._2.methods) {
       sourceBuilder.append(s"pony_clazz**\n${clazz._1}_${typebody._2.mangle}(pony_clazz* this, pony_clazz** args)\n")

@@ -1,9 +1,8 @@
 package com.github.mt2309.pony
 
-import com.github.mt2309.pony.Common.{ID, TypeId, ITypeScope}
+import com.github.mt2309.pony.Common.{ID, TypeId, CompilationUnits}
 
 import language.implicitConversions
-import Typer._
 
 /**
  * User: mthorpe
@@ -12,7 +11,11 @@ import Typer._
  */
 package object Typer {
 
-//  type IFormalArgs = List[ITypeClass]
+
+  type UnTypedScope = Map[TypeId, (AST.ModuleMember, CompilationUnits)]
+  type TypeScope = Map[TypeId, TModuleMember]
+
+  //  type IFormalArgs = List[ITypeClass]
   type TFormalArgs = List[TTypeClass]
 
   type TArgs = List[TArg]
@@ -44,27 +47,8 @@ package object Typer {
   val tVoid = new TPrimitive("Void")(new Scope)
   val tPrimitiveTypes: Set[TPrimitive] = Set(pChar, bool, pInt, pDouble, pUInt)
   val primTOfType = new TOfType(tPrimitiveTypes.asInstanceOf[Set[TTypeElement]])(pScope)
-  val primScope: ITypeScope = tPrimitiveTypes.map(t => t.name -> t).toMap
+  val primScope: TypeScope = tPrimitiveTypes.map(t => t.name -> t).toMap
 
-  type VariableScope = Map[ID, TOfType]
-
-}
-
-object ImplicitTraits {
-
-  implicit val scope = pScope
-  implicit val filename = "Implicit trait"
-
-  val Actor: TTrait = new TTrait("Actor", List.empty, new TIs(List.empty), new TTypeBody(Map.empty))
-
-  val Hashable: TTrait = new TTrait("Hashable", List.empty, new TIs(List.empty),
-    new TTypeBody(Map("hash" -> new TFunction(
-      new TMethodContent(new TReadOnly, "hash", new TCombinedArgs(List.empty, List.empty)), List(new TParam("hash", intOfType)), false, Some(new TBlock(List.empty, None, None))))))
-
-  val Partial: TTrait = new TTrait("Partial", List.empty, new TIs(List.empty),
-    new TTypeBody(Map("mirror" -> new TFunction(
-      new TMethodContent(new TReadOnly, "mirror", new TCombinedArgs(List.empty, List.empty)), List(new TParam("mirror", thisOfType)), false, Some(new TBlock(List.empty, None, None))))))
-
-  val allTraits: List[TTypeClass] = List(Hashable, Partial).map(new TTypeClass(_))
-  val actorTraits = new TTypeClass(Actor) :: allTraits
+  type VariableScope = Map[ID, Option[TOfType]]
+  type MethScope = Map[ID, TBodyContent]
 }

@@ -8,7 +8,7 @@ import com.github.mt2309.pony.AST.Actor
 import com.github.mt2309.pony.AST.Object
 import com.github.mt2309.pony.AST.Declare
 import com.github.mt2309.pony.AST.Primitive
-import com.github.mt2309.pony.ImplicitTraits
+//import com.github.mt2309.pony.ImplicitTraits
 
 /**
  * User: mthorpe

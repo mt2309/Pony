@@ -19,22 +19,22 @@ final case class Module(imports:Set[Use], classes: Map[TypeId, ModuleMember]) ex
 
 final case class Use(toType: Option[TypeId], importName: String) extends AST
 
-sealed abstract class ModuleMember(val typeName: TypeId)(implicit val fileName: Filename) extends AST
+sealed abstract class ModuleMember(val typeName: TypeId, val isStatic: Boolean)(implicit val fileName: Filename) extends AST
 
-final case class Primitive(name: TypeId) extends ModuleMember(name)(primitiveFilename) with AST
-final case class Declare(name: TypeId, is: Is, declareMap: DeclareMap)(implicit val filename: Filename) extends ModuleMember(name) with AST
-final case class Type(override val typeName: TypeId, ofType: OfType, is: Is)(implicit val filename: Filename) extends ModuleMember(typeName) with AST
+final case class Primitive(name: TypeId) extends ModuleMember(name, false)(primitiveFilename) with AST
+final case class Declare(name: TypeId, is: Is, declareMap: DeclareMap)(implicit val filename: Filename) extends ModuleMember(name, false) with AST
+final case class Type(override val typeName: TypeId, ofType: OfType, is: Is)(implicit val filename: Filename) extends ModuleMember(typeName, false) with AST
 
-sealed abstract class
-PonyParserClass(val name: TypeId, val formalArgs: FormalArgs, val is:Is, val typeBody: TypeBody)(implicit val filename: Filename)
-  extends ModuleMember(name) with AST
+sealed abstract class PonyParserClass
+(override val typeName: TypeId, val formalArgs: FormalArgs, val is:Is, val typeBody: TypeBody, override val isStatic: Boolean)(implicit val filename: Filename)
+  extends ModuleMember(typeName, isStatic) with AST
 
 final case class Actor
-(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)(implicit override val filename: Filename) extends PonyParserClass(n,f,i,t) with AST
+(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)(implicit override val filename: Filename) extends PonyParserClass(n,f,i,t, false) with AST
 final case class Trait
-(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)(implicit override val filename: Filename) extends PonyParserClass(n,f,i,t) with AST
+(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)(implicit override val filename: Filename) extends PonyParserClass(n,f,i,t, false) with AST
 final case class Object
-(n: TypeId, f: FormalArgs, i:Is, t: TypeBody, isStatic: Boolean)(implicit override val filename: Filename) extends PonyParserClass(n,f,i,t) with AST
+(n: TypeId, f: FormalArgs, i:Is, t: TypeBody, override val isStatic: Boolean)(implicit override val filename: Filename) extends PonyParserClass(n,f,i,t, isStatic) with AST
 
 final case class Param(name: ID, ofType: OfType) extends AST
 
@@ -58,18 +58,7 @@ object Mutable      extends Mode with AST
 object Unique       extends Mode with AST
 final case class ModeExpr(expr: Expr) extends Mode with AST
 
-final case class Block(contents:List[BlockContent], catchBlock: Option[Block], alwaysBlock: Option[Block]) extends BlockContent with AST {
-
-  def codeGen: String = {
-    val builder = new StringBuilder("{\n")
-
-    for (con <- contents) {builder.append(con.codeGen); builder.append("\n") }
-
-    builder.append("\n}")
-
-    builder.mkString
-  }
-}
+final case class Block(contents:List[BlockContent], catchBlock: Option[Block], alwaysBlock: Option[Block]) extends BlockContent with AST
 final case class Is(list: List[TypeClass]) extends AST
 final case class DeclareMap(map: List[PonyMap]) extends AST
 final case class PonyMap(from:ID, to: ID) extends AST
@@ -96,33 +85,14 @@ final case class MethodContent(mode: Mode, id:ID, combinedArgs: CombinedArgs) ex
 
 final case class Expr(unary: Unary, operator: List[(Operator, Unary)]) extends AST
 
-sealed trait BlockContent extends AST {
-  def codeGen: String
-}
+sealed trait BlockContent extends AST
 
-object Return extends BlockContent with AST {
-  def codeGen: String = "goto return_label;\n"
-}
-object Throw extends BlockContent with AST {
-  def codeGen: String = ???
-}
-object Break extends BlockContent with AST {
-  def codeGen: String = "break;\n"
-}
-object Continue extends BlockContent with AST {
-  def codeGen: String = "continue\n;"
-}
+object Return extends BlockContent with AST
+object Throw extends BlockContent with AST
+object Break extends BlockContent with AST
+object Continue extends BlockContent with AST
 
-final case class VarDec(id: ID, ofType: Option[OfType], assign: Option[Expr]) extends BlockContent with AST {
-  def codeGen: String = {
-    val b = new StringBuilder
-
-    b.append(s"pony_clazz * ${id} = ")
-//    b.append(assign.getOrElse(of))
-
-    b.mkString
-  }
-}
+final case class VarDec(id: ID, ofType: Option[OfType], assign: Option[Expr]) extends BlockContent with AST
 final case class Match(list: List[Expr], cases: List[CaseBlock]) extends BlockContent with AST
 final case class DoLoop(block: Block, whileExpr: Expr) extends BlockContent with AST
 final case class WhileLoop(whileExpr: Expr, block: Block) extends BlockContent with AST
@@ -144,30 +114,86 @@ final case class LValueVar(nVar: VarDec) extends LValue with AST
 final case class LValueCommand(command: Command) extends LValue with AST
 
 // "+" | "-" | "*" | "/" | "%" | "<<" | ">>" | ">" | "<" | ">=" | "<=" | "!=" | "-" | "#=" | "~=" | "|" | "^" | "&"
-sealed abstract class Operator extends AST
+sealed abstract class Operator extends AST {
+  def codeGen: String
+}
 sealed abstract class NumericOp extends Operator
 sealed abstract class BooleanOp extends Operator
 sealed abstract class NumericBooleanOp extends Operator
 sealed abstract class TypeOp extends Operator
 
-final class Plus    extends NumericOp with AST
-final class Minus   extends NumericOp with AST
-final class Times   extends NumericOp with AST
-final class Divide  extends NumericOp with AST
-final class Mod     extends NumericOp with AST
-final class LShift  extends NumericOp with AST
-final class RShift  extends NumericOp with AST
-final class GT      extends BooleanOp with AST
-final class LT      extends BooleanOp with AST
-final class GTE     extends BooleanOp with AST
-final class LTE     extends BooleanOp with AST
-final class STEq    extends TypeOp with AST
-final class STNeq   extends TypeOp with AST
-final class EQ      extends NumericBooleanOp with AST
-final class NE      extends NumericBooleanOp with AST
-final class Or      extends NumericBooleanOp with AST
-final class And     extends NumericBooleanOp with AST
-final class XOr     extends NumericBooleanOp with AST
+final class Plus    extends NumericOp with AST {
+  override def codeGen = "+"
+}
+
+final class Minus   extends NumericOp with AST {
+  override def codeGen = "-"
+}
+
+final class Times   extends NumericOp with AST {
+  override def codeGen = "*"
+}
+
+final class Divide  extends NumericOp with AST {
+  override def codeGen = "/"
+}
+
+final class Mod     extends NumericOp with AST {
+  override def codeGen = "%"
+}
+
+final class LShift  extends NumericOp with AST {
+  override def codeGen = "<<"
+}
+
+final class RShift  extends NumericOp with AST {
+  override def codeGen = ">>"
+}
+
+final class GT      extends BooleanOp with AST {
+  override def codeGen = ">"
+}
+
+final class LT      extends BooleanOp with AST {
+  override def codeGen = "<"
+}
+
+final class GTE     extends BooleanOp with AST {
+  override def codeGen = ">="
+}
+
+final class LTE     extends BooleanOp with AST {
+  override def codeGen = "<="
+}
+
+final class STEq    extends TypeOp with AST {
+  override def codeGen = ???
+}
+
+final class STNeq   extends TypeOp with AST {
+  override def codeGen = ???
+}
+
+final class EQ      extends NumericBooleanOp with AST {
+  override def codeGen = "=="
+}
+
+final class NE      extends NumericBooleanOp with AST {
+  override def codeGen = "!="
+}
+
+final class Or      extends NumericBooleanOp with AST {
+  override def codeGen = "||"
+}
+
+final class And     extends NumericBooleanOp with AST {
+  override def codeGen = "&&"
+}
+
+final class XOr     extends NumericBooleanOp with AST {
+  override def codeGen = "^"
+}
+
 
 sealed abstract class Unary(unaryOps: List[UnaryOp]) extends AST
 final case class UnaryCommand(un: List[UnaryOp], command: Command) extends Unary(un) with AST
@@ -192,7 +218,19 @@ final case class PonyString(s: String) extends Atom with AST
 final case class PonyID(i: ID) extends Atom with AST
 final case class PonyTypeId(t: TypeId) extends Atom with AST
 
-sealed abstract class UnaryOp extends AST
-object PARTIAL extends UnaryOp with AST
-object UNARY_MINUS extends UnaryOp with AST
-object UNARY_BANG extends UnaryOp with AST
+sealed abstract class UnaryOp extends AST {
+  def codeGen: String
+}
+object PARTIAL extends UnaryOp with AST {
+  // TODO: need to carry this info to making a partial object...
+  override def codeGen: String = ???
+}
+
+object UNARY_MINUS extends UnaryOp with AST {
+  override def codeGen: String = "-"
+}
+
+object UNARY_BANG extends UnaryOp with AST {
+  override def codeGen: String = "!"
+}
+
