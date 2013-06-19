@@ -101,22 +101,24 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
   private def checkIs(is: Is)(implicit scope: Scope): TIs = {
     val cached = typeCache.lookupIs(is)
 
-    val res = cached.getOrElse(new TIs(is.list.map(checkTypeClass)).setPos(is.pos))
+    val res = cached.getOrElse(new TIs(is.list.map(checkTypeClass(_).asInstanceOf[TTypeClass])).setPos(is.pos))
     typeCache.updateIs(is, res)
 
     res
   }
 
-  private def checkTypeClass(typeclass: TypeClass)(implicit scope: Scope): TTypeClass = {
-    val cached = typeCache.lookupTypeclass(typeclass)
-    val res = cached.getOrElse {
-      val t = scope.search(typeclass, this)
-      new TTypeClass(t, checkMode(typeclass.mode), checkFormal(typeclass.formalArgs)).setPos(typeclass.pos)
+  private def checkTypeClass(typeclass: TypeClass)(implicit scope: Scope): TTypeElement = {
+
+    val res = typeCache.lookupTypeclass(typeclass).getOrElse {
+      scope.search(typeclass, this) match {
+        case e: EmptyType => e
+        case t: TModuleMember => new TTypeClass(t, checkMode(typeclass.mode), checkFormal(typeclass.formalArgs)).setPos(typeclass.pos)
+      }
     }
 
     typeCache.updateTypeclass(typeclass, res)
 
-    res.asInstanceOf[TTypeClass]
+    res
   }
 
   private def checkDeclareMap(decMap: DeclareMap, is: TIs)(implicit scope: Scope): TDeclareMap = {
@@ -128,7 +130,7 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
   }
 
   def checkOf(of: OfType)(implicit scope: Scope): Option[TOfType] = of match {
-    case c: ConcreteOfType => Some(new TOfType(c.typeList.map(checkTypeElement)).setPos(of.pos))
+    case c: ConcreteOfType => Some(new TOfType(c.typeList map checkTypeElement ).setPos(of.pos))
     case t: ThisOfType => {
       if (scope.currentClass.currentClass.isDefined && !scope.currentClass.isStatic)
         None
@@ -138,7 +140,7 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
   }
 
   private def checkTypeElement(elem: TypeElement)(implicit scope: Scope): TTypeElement = elem match {
-    case PartialType(clazz) => new TPartialType(checkTypeClass(clazz)).setPos(elem.pos)
+    case PartialType(clazz) => new TPartialType(checkTypeClass(clazz).asInstanceOf[TTypeClass]).setPos(elem.pos)
     case t: TypeClass => checkTypeClass(t)
     case l: Lambda => checkLambda(l)
   }

@@ -13,7 +13,7 @@ object TyperHelper {
   def typeToClass(opt: Option[TOfType]): String = opt match {
     case Some(x) => {
       if (x.isPrimitive) {
-        x.maximalType.cTypeName
+        x.maximalType.cTypename
       }
       else {
         "pony_clazz * "
@@ -24,9 +24,23 @@ object TyperHelper {
     }
   }
 
+  def createVariable(opt: Option[TOfType]): String = opt match {
+    case Some(of) => {
+      if (of.isPrimitive) {
+        of.maximalType.creation
+      }
+      else {
+        "create_clazz_var"
+      }
+    }
+
+    case None => "create_clazz_var"
+  }
+
 
   def typeToConstructor(opt: Option[TOfType]): String = opt match {
     case Some(x) => {
+      println(x)
       if (x.isPrimitive) {
         x.maximalType.defaultConstructor
       }
@@ -37,7 +51,7 @@ object TyperHelper {
         x.defaultConstructor
       }
     }
-    case None => ???
+    case None => "NULL"
   }
 
   def reduceVariables(list: List[Map[ID, Option[TOfType]]]): Map[ID, Option[TOfType]] = reduceVariablesHelper(list, Map.empty)

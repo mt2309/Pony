@@ -33,17 +33,18 @@ final case class EmptyType(override val name: TypeId)(implicit override val scop
 
   override def variables = Map.empty
 
-  override def defaultConstructor = "NULL;\n"
+  override val defaultConstructor = "NULL;\n"
 }
 
-final case class TPrimitive(typename: TypeId, cName: String, override val defaultConstructor: String)(implicit override val scope: Scope) extends TModuleMember(typename) with TTypeElement {
+final case class TPrimitive(typename: TypeId, cTypename: String,  override val defaultConstructor: String)
+                           (implicit override val scope: Scope) extends TModuleMember(typename) with TTypeElement {
 
   override def isSubType(that: TTypeElement): Boolean = that match {
     case TPrimitive(pName, _ , _) => pName == typename
     case _ => false
   }
 
-  def cTypeName: String = typename.toLowerCase
+  def creation: String = s"create_${typename.toLowerCase}_var"
 
   override def variables = Map.empty
 
@@ -93,7 +94,7 @@ abstract class ConcreteClass
       case None     => b.append(s"pony_clazz *")
     }
 
-    b.append("}\n")
+    b.append("}\n\n")
     b.mkString
   }
 
@@ -334,96 +335,6 @@ final case class TExpr(unary: TUnary, operator: List[(Operator, TUnary)])(implic
     case Nil => of
   }
 }
-
-trait TBlockContent extends Typer {
-  def codeGen: String
-}
-
-final class TReturn(implicit val scope: Scope) extends TBlockContent {
-  override def codeGen = "goto return_label;\n"
-}
-
-final class TThrow(implicit val scope: Scope) extends TBlockContent {
-  override def codeGen = "\n"
-}
-
-final class TBreak(implicit val scope: Scope) extends TBlockContent {
-  override def codeGen = "break;\n"
-}
-
-final class TContinue(implicit val scope: Scope) extends TBlockContent {
-  override def codeGen = "continue;\n"
-}
-
-final case class TVarDec(id: ID, ofType: Option[TOfType], expr: Option[TExpr])(implicit val scope: Scope) extends TBlockContent {
-  override def codeGen = {
-    val b = new StringBuilder
-
-    b.append(s"pony_clazz ** $id ")
-
-    if (expr.isDefined)
-      b.append(s"= ${expr.get.codeGen};\n")
-    else
-      b.append(s"= ${ofType.get.defaultConstructor};\n")
-
-    b.mkString
-  }
-
-  def constructor: String = ofType.get.defaultConstructor
-}
-
-final case class TMatch(list: List[(TExpr,TCaseBlock)])(implicit val scope: Scope) extends TBlockContent {
-  override def codeGen = {
-    val b = new StringBuilder
-
-
-    b.mkString
-  }
-}
-
-final case class TDoLoop(block: TBlock, whileExpr: TExpr)(implicit val scope: Scope) extends TBlockContent {
-  override def codeGen = s"do (${whileExpr.codeGen})\n${block.codeGen}\n"
-}
-
-final case class TWhileLoop(whileExpr: TExpr, block: TBlock)(implicit val scope: Scope) extends TBlockContent {
-  override def codeGen = {
-    val b = new StringBuilder
-    b.append(s"while (${whileExpr.codeGen})\n")
-    b.append(block.codeGen)
-
-    b.append("\n")
-
-    b.mkString
-  }
-}
-
-final case class TForLoop(forVars: List[TForVar], inExpr: TExpr, block: TBlock)(implicit val scope: Scope) extends TBlockContent {
-  override def codeGen = ???
-}
-
-final case class TConditional(conditionalList: List[(TExpr, TBlock)], elseBlock: Option[TBlock])(implicit val scope: Scope) extends TBlockContent {
-  override def codeGen = {
-    val builder = new StringBuilder
-    builder.append(s"if (${conditionalList.head._1.codeGen})\n${conditionalList.head._2.codeGen}\n")
-
-    for (cond <- conditionalList.tail)
-      builder.append(s"else if (${cond._1})\n${cond._2}\n")
-
-    for (e <- elseBlock)
-      builder.append(s"else ${e.codeGen}")
-
-    builder.mkString
-  }
-}
-
-final case class TAssignment(lValues: List[TLValue], expr: Option[TExpr])(implicit val scope: Scope) extends TBlockContent {
-  override def codeGen = {
-    val b = new StringBuilder
-
-    b.mkString
-  }
-}
-
 
 final case class TCaseBlock(c: Option[TCaseSubBlock], block: TBlock)(implicit val scope: Scope) extends Typer
 abstract class TCaseSubBlock(implicit val scope: Scope) extends Typer

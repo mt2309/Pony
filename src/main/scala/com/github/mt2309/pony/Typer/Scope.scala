@@ -137,14 +137,10 @@ final case class Scope(typeScope: TypeScope = primScope,
 
   def search(name: TypeId, checker: LowerTypeChecker)(implicit pos: Position): TModuleMember = {
     val p: Option[TModuleMember] = tPrimitiveTypes.find(_.typename == name)
-    val i: Option[TModuleMember] = if (p.isDefined) p else imports.searchType(name)
-    val t: Option[TModuleMember] = if (i.isDefined) i else typeScope.get(name)
+    val t: Option[TModuleMember] = if (p.isDefined) p else typeScope.get(name)
+    val i: Option[TModuleMember] = if (t.isDefined) t else imports.searchType(name)
 
-
-    if (t.isDefined) {
-      t.get
-    }
-    else {
+    i.getOrElse {
       val unTyped = unTypedScope.getOrElse(name, throw new TypeClassNotFoundException(s"$name not found in $filename")(pos, this))
       val scope = new Scope(filename = unTyped._1.fileName, typeScope = this.typeScope)
       checker.checkClass(unTyped._1, scope)

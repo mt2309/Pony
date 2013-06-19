@@ -15,7 +15,7 @@ package object Typer {
   type UnTypedScope = Map[TypeId, (AST.ModuleMember, CompilationUnits)]
   type TypeScope = Map[TypeId, TModuleMember]
 
-  type TFormalArgs = List[TTypeClass]
+  type TFormalArgs = List[TTypeElement]
 
   type TArgs = List[TArg]
   type TParams = List[TParam]
