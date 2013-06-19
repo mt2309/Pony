@@ -2,7 +2,7 @@ name := "Pony"
 
 version := "1.0"
 
-scalaVersion := "2.10.0"
+scalaVersion := "2.10.2"
 
 scalacOptions ++= Seq( "-deprecation", "-unchecked", "-feature" , "-Xlint", "-Ywarn-all", "-Xverify", "-Ywarn-dead-code" , "-Ywarn-all", "-encoding", "utf8")
 
