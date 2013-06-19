@@ -53,6 +53,7 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
   def checkClass(m: ModuleMember, scope: Scope): TModuleMember = {
 
     implicit val sc = scope.setClass(Some(m))
+    implicit val pos = m.pos
 
     val cached = typeCache.lookupModule(m)
 
@@ -64,19 +65,23 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
       }
       case t:Type => new TType(t.typeName, checkOf(t.ofType).get, checkIs(t.is))
       case c:Actor => {
-        val tIs = checkIs(c.i)
-        val traitVars = tIs.variables
-        new TActor(  c.n, checkIFormal(c.f), tIs, checkTypeBody(c.t)(sc.updateScope(traitVars, this)(m.pos))).setPos(m.pos)
+        val formalScope: Scope = checkFormalParams(c.f)
+        val tIs = checkIs(c.i)(formalScope)
+        new TActor(  c.n, c.f, tIs, checkTypeBody(c.t)(formalScope)).setPos(m.pos)
       }
       case c:Object => {
-        val tIs = checkIs(c.i)
-        val traitVars = tIs.variables
-        new TObject(  c.n, checkIFormal(c.f), tIs, checkTypeBody(c.t)(sc.updateScope(traitVars, this)(m.pos))).setPos(m.pos)
+        val formalScope: Scope = checkFormalParams(c.f)
+        val tIs = checkIs(c.i)(formalScope)
+        new TObject(  c.n, c.f, tIs, checkTypeBody(c.t)(formalScope)).setPos(m.pos)
       }
       case c:Trait => {
-        val tIs = checkIs(c.i)
-        val traitVars = tIs.variables
-        new TTrait(  c.n, checkIFormal(c.f), tIs, checkTypeBody(c.t)(sc.updateScope(traitVars, this)(m.pos))).setPos(m.pos)
+
+        val field = c.t.body.values.find(t => t.isInstanceOf[Field] || t.isInstanceOf[Delegate])
+        if (field.isDefined) throw new FieldDefinedInTrait(s"Variable defined in trait ${c.n}")
+
+        val formalScope: Scope = checkFormalParams(c.f)
+        val tIs = checkIs(c.i)(formalScope)
+        new TTrait(  c.n, c.f, tIs, checkTypeBody(c.t)(formalScope)).setPos(m.pos)
       }
     })
 
@@ -85,9 +90,13 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
     res
   }
 
-  private def checkIFormal(formal: FormalArgs)(implicit scope: Scope): TFormalArgs = {
-    formal.map(checkTypeClass)
+  private def checkFormalParams(formal: FormalParams)(implicit scope: Scope, pos: Position): Scope = {
+    var sc = scope
+    for (param <- formal) sc = sc.updateScope(param)
+
+    sc
   }
+
 
   private def checkIs(is: Is)(implicit scope: Scope): TIs = {
     val cached = typeCache.lookupIs(is)

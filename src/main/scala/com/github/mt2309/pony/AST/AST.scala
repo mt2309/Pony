@@ -26,15 +26,15 @@ final case class Declare(name: TypeId, is: Is, declareMap: DeclareMap)(implicit 
 final case class Type(override val typeName: TypeId, ofType: OfType, is: Is)(implicit val filename: Filename) extends ModuleMember(typeName, false) with AST
 
 sealed abstract class PonyParserClass
-(override val typeName: TypeId, val formalArgs: FormalArgs, val is:Is, val typeBody: TypeBody, override val isStatic: Boolean)(implicit val filename: Filename)
+(override val typeName: TypeId, val formalArgs: FormalParams, val is:Is, val typeBody: TypeBody, override val isStatic: Boolean)(implicit val filename: Filename)
   extends ModuleMember(typeName, isStatic) with AST
 
 final case class Actor
-(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)(implicit override val filename: Filename) extends PonyParserClass(n,f,i,t, false) with AST
+(n: TypeId, f: FormalParams, i:Is, t: TypeBody)(implicit override val filename: Filename) extends PonyParserClass(n,f,i,t, false) with AST
 final case class Trait
-(n: TypeId, f: FormalArgs, i:Is, t: TypeBody)(implicit override val filename: Filename) extends PonyParserClass(n,f,i,t, false) with AST
+(n: TypeId, f: FormalParams, i:Is, t: TypeBody)(implicit override val filename: Filename) extends PonyParserClass(n,f,i,t, false) with AST
 final case class Object
-(n: TypeId, f: FormalArgs, i:Is, t: TypeBody, override val isStatic: Boolean)(implicit override val filename: Filename) extends PonyParserClass(n,f,i,t, isStatic) with AST
+(n: TypeId, f: FormalParams, i:Is, t: TypeBody, override val isStatic: Boolean)(implicit override val filename: Filename) extends PonyParserClass(n,f,i,t, isStatic) with AST
 
 final case class Param(name: ID, ofType: OfType) extends AST
 

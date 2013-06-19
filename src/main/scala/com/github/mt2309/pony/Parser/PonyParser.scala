@@ -52,19 +52,19 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   }
 
   private def actor: Parser[Actor] = positioned {
-    "actor" ~> typeId ~ formalArgs ~ is ~ typeBody ^^ {
-      s => new Actor(n = s._1._1._1, f = s._1._1._2.getOrElse(List.empty), i = s._1._2, t = s._2)
+    "actor" ~> typeId ~ formalParams ~ is ~ typeBody ^^ {
+      s => new Actor(n = s._1._1._1, f = s._1._1._2, i = s._1._2, t = s._2)
     }
   }
 
   private def traitParser: Parser[Trait] = positioned {
-    "trait" ~> typeId ~ formalArgs ~ is ~ typeBody ^^ {
-      s => new Trait(n = s._1._1._1, f = s._1._1._2.getOrElse(List.empty), i = s._1._2, t = s._2)
+    "trait" ~> typeId ~ formalParams ~ is ~ typeBody ^^ {
+      s => new Trait(n = s._1._1._1, f = s._1._1._2, i = s._1._2, t = s._2)
     }
   }
   private def objectParser: Parser[Object] = positioned {
-    ("static".? <~ "object") ~ (typeId ~ formalArgs) ~ (is ~ typeBody) ^^ {
-      s => new Object(isStatic = s._1._1.isDefined, n = s._1._2._1, f = s._1._2._2.getOrElse(List.empty), i = s._2._1, t = s._2._2)
+    ("static".? <~ "object") ~ (typeId ~ formalParams) ~ (is ~ typeBody) ^^ {
+      s => new Object(isStatic = s._1._1.isDefined, n = s._1._2._1, f = s._1._2._2, i = s._2._1, t = s._2._2)
     }
   }
 
@@ -305,7 +305,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
     unaryOp ~ command ^^ {s => new UnaryCommand(s._1, s._2)}
   }
 
-  private def unaryOp: Parser[List[UnaryOp]] = (partial | unaryMinus | unaryBang) *
+  private def unaryOp: Parser[List[UnaryOp]] = (partial | unaryMinus | unaryBang).*
   private def partial: Parser[UnaryOp] = positioned {
     "\\" ^^ {s => PARTIAL}
   }
@@ -362,11 +362,11 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
 
 
   // Modes
-  private def mode: Parser[Mode] = positioned {immutable | mutable | unique}
+  private def mode: Parser[Mode] = positioned {immutable | mutable | unique | modeExpr}
 
-  private def immutable: Parser[Mode] = "[:" ~ "imm" ~ "]" ^^ {s => Immutable}
-  private def mutable: Parser[Mode] = "[:" ~ "mut" ~ "]"^^ {s => Mutable}
-  private def unique: Parser[Mode] = "[:" ~ "uniq" ~ "]" ^^ {s => Unique}
+  private def immutable: Parser[Mode] = (("[:" ~ "imm" ~  "]") | "!") ^^ {s => Immutable}
+  private def mutable: Parser[Mode]   = (("[:" ~ "mut" ~  "]") | "~") ^^ {s => Mutable}
+  private def unique: Parser[Mode]    = (("[:" ~ "uniq" ~ "]") | "@") ^^ {s => Unique}
   private def modeExpr: Parser[ModeExpr] = positioned {
     "[:" ~> expr <~ "]" ^^ {new ModeExpr(_)}
   }

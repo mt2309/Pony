@@ -30,6 +30,7 @@ final class MethodNotFoundException(id: ID, name: TypeId)(implicit pos: Position
 
 final class AssignmentException(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)
 final class VariableShadowingException(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)
+final class FieldDefinedInTrait(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)
 final class TypeShadowingException(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)
 final class LambdaInMethCallException(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)
 final class TypeMismatch(expected: String, got: String)(implicit pos: Position, scope: Scope) extends TyperException(s"Got $got, but expected $expected")

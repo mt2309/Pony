@@ -104,12 +104,12 @@ final case class Scope(typeScope: TypeScope = primScope,
         case p: TPartialType => p.typeclass.moduleMember
         case t: TTypeClass => t.moduleMember
         case l: TLambda => throw new LambdaInMethCallException(s"Lambda found in method lookup for for id $id")(pos, this)
-        case TPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")(pos, this)
+        case TPrimitive(name, _, _) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")(pos, this)
         case EmptyType(name) => throw new EmptyTypeFound(s"Type Parameter $name found in method call, which have no methods defined on them")(pos, this)
       }
 
       val methList: Set[TBodyContent] = for (c <- clazzList) yield c match {
-        case TPrimitive(name) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")(pos, this)
+        case TPrimitive(name, _, _) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")(pos, this)
         case EmptyType(name) => throw new EmptyTypeFound(s"Empty type $name found where it should not be")(pos, this)
         case p: TModuleMember => p.methods.getOrElse(id, throw new MethodNotFoundException(id, p.name)(pos, this))
       }

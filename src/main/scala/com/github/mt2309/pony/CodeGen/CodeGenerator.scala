@@ -29,13 +29,6 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
     for (clazz <- classes) {
       headerBuilder.append(s"unsigned long * ${clazz._1}_id;\n")
 
-      clazz._2 match {
-        case conc: ConcreteClass => {
-          headerBuilder.append(s"pony_clazz * ${clazz._1}_construct(pony_clazz ** args);\n")
-        }
-        case _ => Unit
-      }
-
       sourceBuilder.append(s"\t${clazz._1}_id = initialise_bit_set(${clazz._3});\n")
 
 
@@ -49,20 +42,18 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
     for (clazz <- classes) {
       clazz._2 match {
         case conc: ConcreteClass => {
+          headerBuilder.append(s"pony_clazz * ${clazz._1}_construct();\n")
           sourceBuilder.append(conc.defaultConstructor)
+
+          for (body <- conc.methods) {
+            headerBuilder.append(s"pony_clazz** ${clazz._1}_${body._2.mangle}(pony_clazz* this, pony_clazz** args);\n")
+            sourceBuilder.append(s"pony_clazz**\n${clazz._1}_${body._2.mangle}(pony_clazz* this, pony_clazz** args)\n")
+            sourceBuilder.append(body._2.codeGen)
+          }
         }
-        case _ => Unit
+        case _ =>
       }
     }
-
-    for (clazz <- classes; typebody <- clazz._2.methods) {
-      sourceBuilder.append(s"pony_clazz**\n${clazz._1}_${typebody._2.mangle}(pony_clazz* this, pony_clazz** args)\n")
-      sourceBuilder.append(typebody._2.codeGen)
-
-      sourceBuilder.append("\n\n")
-    }
-
-
     println(headerBuilder.mkString)
     println("\n\n\n\n\n")
     println(sourceBuilder.mkString)
