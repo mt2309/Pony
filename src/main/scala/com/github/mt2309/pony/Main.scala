@@ -50,8 +50,5 @@ object Main extends App {
 
     if (stage >= 3)
       unit.compile(output)
-
-
-    println("here")
   }
 }
