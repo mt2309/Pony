@@ -161,6 +161,59 @@ create_args(unsigned int count, ...)
   return array;
 }
 
+variable*
+create_clazz_var(pony_clazz* v)
+{
+  variable* var = malloc(sizeof(variable));
+  var->clazz_value = v;
+
+  return var;
+}
+
+variable*
+create_double_var(double d)
+{
+  variable* var = malloc(sizeof(variable));
+  var->double_value = d;
+
+  return var;
+}
+
+variable*
+create_int_var(int i)
+{
+  variable* var = malloc(sizeof(variable));
+  var->int_value = i;
+
+  return var;
+}
+
+variable*
+create_bool_var(bool b)
+{
+  variable* var = malloc(sizeof(variable));
+  var->bool_value = b;
+
+  return var;
+}
+
+variable*
+create_long_var(long l)
+{
+  variable* var = malloc(sizeof(variable));
+  var->long_value = l;
+
+  return var;
+}
+
+variable*
+create_char_var(char c)
+{
+  variable* var = malloc(sizeof(variable));
+  var->char_value = c;
+
+  return var;
+}
 
 // tagging main in so we can get a complete build
 // when we append code to the base of this, we need to get rid of it.

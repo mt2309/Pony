@@ -65,6 +65,7 @@ typedef union variable
     pony_clazz* clazz_value;
     double double_value;
     int int_value;
+    bool bool_value;
     long long_value;
     char char_value;
 } variable;
@@ -107,6 +108,24 @@ create_instance_variables(pony_clazz *, variable **, unsigned int *, unsigned in
 static_clazz*
 initialise_static_class(unsigned int clazz_id, unsigned int method_count,
                         unsigned int * identifiers, pony_meth * methods);
+
+variable*
+create_clazz_var(pony_clazz* v);
+
+variable*
+create_double_var(double d);
+
+variable*
+create_int_var(int i);
+
+variable*
+create_bool_var(bool b);
+
+variable*
+create_long_var(long l);
+
+variable*
+create_char_var(char c);
 
 variable**
 call_method(pony_clazz* this, unsigned int id, variable ** arguments);
