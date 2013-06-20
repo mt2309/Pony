@@ -3,10 +3,10 @@
 
 extern unsigned int clazz_set_size;
 
-unsigned long*
+unsigned int*
 initialise_bit_set(unsigned int clazz_id)
 {
-    unsigned long* array = calloc(sizeof(unsigned long), clazz_set_size);
+    unsigned int* array = calloc(sizeof(unsigned int), clazz_set_size);
 
     array[clazz_id/64] = (1 << (clazz_id % 64));
 
@@ -14,11 +14,11 @@ initialise_bit_set(unsigned int clazz_id)
 }
 
 static_clazz*
-initialise_static_class(unsigned int clazz_id, unsigned int method_count,
+initialise_static_class(unsigned int * clazz_id, unsigned int method_count,
                         unsigned int * identifiers, pony_meth * methods)
 {
   static_clazz* clazz = malloc(sizeof(static_clazz));
-  clazz->clazz_set = initialise_bit_set(clazz_id);
+  clazz->clazz_set = clazz_id;
   clazz->vtab = new_vtable(method_count, identifiers, methods);
 
   return clazz;
@@ -68,7 +68,7 @@ lookup_value(instance_variable* v, unsigned int id)
 
 // determines if one type is a subtype of the other.
 bool
-is_sub_type(unsigned long * current_class, unsigned long * other_class)
+is_sub_type(unsigned int * current_class, unsigned int * other_class)
 {
 
   for (unsigned int i = 0; i < clazz_set_size; ++i)
@@ -107,7 +107,7 @@ new_vtable(unsigned int count, unsigned int * ids, pony_meth * methods)
 }
 
 pony_clazz*
-new_pony_clazz(static_clazz * id, unsigned long ** type_info)
+new_pony_clazz(static_clazz * id, unsigned int ** type_info)
 {
   pony_clazz * new_clazz = malloc(sizeof(pony_clazz));
   new_clazz->static_class_info = id;
@@ -172,6 +172,22 @@ create_ids(unsigned int count, ...)
   for (unsigned int i = 0; i < count; ++i)
   {
     array[i] = va_arg(ap, unsigned int);
+  }
+
+  return array;
+}
+
+pony_meth*
+create_meths(unsigned int count, ...)
+{
+  va_list ap;
+  va_start(ap, count);
+
+  pony_meth* array = calloc(sizeof(pony_meth), count);
+
+  for (unsigned int i = 0; i < count; ++i)
+  {
+    array[i] = va_arg(ap, pony_meth);
   }
 
   return array;

@@ -40,7 +40,7 @@ typedef struct vtable
 typedef struct static_clazz
 {
     vtable * vtab;
-    unsigned long * clazz_set;
+    unsigned int * clazz_set;
 } static_clazz;
 
 struct instance_variable;
@@ -53,7 +53,7 @@ struct instance_variable;
 typedef struct pony_clazz
 {
     static_clazz * static_class_info;
-    unsigned long ** type_info;
+    unsigned int ** type_info;
     struct instance_variable * variables;
 } pony_clazz;
 
@@ -84,7 +84,7 @@ typedef struct instance_variable
 
 // Helper method prototypes
 
-unsigned long*
+unsigned int*
 initialise_bit_set(unsigned int clazz_id);
 
 pony_meth
@@ -94,19 +94,19 @@ pony_clazz*
 lookup_value(instance_variable*, unsigned int);
 
 bool
-is_sub_type(unsigned long *, unsigned long *);
+is_sub_type(unsigned int *, unsigned int *);
 
 vtable*
 new_vtable(unsigned int, unsigned int *, pony_meth *);
 
 pony_clazz*
-new_pony_clazz(static_clazz *, unsigned long **);
+new_pony_clazz(static_clazz *, unsigned int **);
 
 void
 create_instance_variables(pony_clazz *, variable **, unsigned int *, unsigned int);
 
 static_clazz*
-initialise_static_class(unsigned int clazz_id, unsigned int method_count,
+initialise_static_class(unsigned int * clazz_id, unsigned int method_count,
                         unsigned int * identifiers, pony_meth * methods);
 
 variable*
@@ -132,6 +132,9 @@ call_method(pony_clazz*, unsigned int id, variable ** arguments);
 
 variable**
 create_args(unsigned int count, ...);
+
+pony_meth*
+create_meths(unsigned int count, ...);
 
 unsigned int*
 create_ids(unsigned int count, ...);
