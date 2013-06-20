@@ -49,14 +49,14 @@ lookup_meth(vtable* v, unsigned int id)
   return NULL;
 }
 
-pony_clazz*
-lookup_value(instance_variable* v, unsigned int id)
+variable*
+lookup_value(pony_clazz* this, unsigned int id)
 {
-  instance_variable * cur = v;
+  instance_variable * cur = this->variables;
 
   while (cur != NULL) {
     if (cur->identifier == id)
-      return cur->value->clazz_value;
+      return cur->value;
     else
       cur = cur->next;
   }
@@ -64,6 +64,21 @@ lookup_value(instance_variable* v, unsigned int id)
   fprintf(stderr, "Could not find method with id %u\n", id);
 
   return NULL;
+}
+
+void
+set_value(pony_clazz * this, variable * var, unsigned int id)
+{
+  instance_variable * cur = this->variables;
+
+  while (cur != NULL)
+  {
+    if (cur->identifier == id)
+    {
+          cur->value = var;
+          return;
+    }
+  }
 }
 
 // determines if one type is a subtype of the other.

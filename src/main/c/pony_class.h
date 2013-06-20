@@ -83,15 +83,17 @@ typedef struct instance_variable
 } instance_variable;
 
 // Helper method prototypes
-
 unsigned int*
 initialise_bit_set(unsigned int clazz_id);
 
 pony_meth
 lookup_meth(vtable*, unsigned int);
 
-pony_clazz*
-lookup_value(instance_variable*, unsigned int);
+variable*
+lookup_value(pony_clazz*, unsigned int);
+
+void
+set_value(pony_clazz *, variable *, unsigned int);
 
 bool
 is_sub_type(unsigned int *, unsigned int *);
