@@ -128,9 +128,12 @@ variable*
 create_char_var(char c);
 
 variable**
-call_method(pony_clazz* this, unsigned int id, variable ** arguments);
+call_method(pony_clazz*, unsigned int id, variable ** arguments);
 
 variable**
 create_args(unsigned int count, ...);
+
+unsigned int*
+create_ids(unsigned int count, ...);
 
 #endif

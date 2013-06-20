@@ -161,6 +161,22 @@ create_args(unsigned int count, ...)
   return array;
 }
 
+unsigned int*
+create_ids(unsigned int count, ...)
+{
+  va_list ap;
+  va_start(ap, count);
+
+  unsigned int* array = calloc(sizeof(unsigned int), count);
+
+  for (unsigned int i = 0; i < count; ++i)
+  {
+    array[i] = va_arg(ap, unsigned int);
+  }
+
+  return array;
+}
+
 variable*
 create_clazz_var(pony_clazz* v)
 {
