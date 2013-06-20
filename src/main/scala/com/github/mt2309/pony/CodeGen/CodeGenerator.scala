@@ -1,10 +1,9 @@
 package com.github.mt2309.pony.CodeGen
 
 import com.github.mt2309.pony.Common.{TypeId,TabbedBuilder}
-
 import com.github.mt2309.pony.CompilationUnit.CompilationUnit
-
 import com.github.mt2309.pony.Typer._
+import java.io.{PrintWriter, File}
 
 /**
  * User: mthorpe
@@ -44,16 +43,15 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
     for (clazz <- classes) {
       clazz._2 match {
         case conc: ConcreteClass => {
-          headerBuilder.appendln(s"pony_clazz * ${clazz._1}_construct();")(0)
+          headerBuilder.appendln(s"pony_clazz * ${clazz._1}_construct(void);")(0)
           headerBuilder.appendln(s"static_clazz * static_${clazz._1} = NULL;")(0)
-          headerBuilder.appendln(s"static_clazz * create_static_${clazz._1}();")(0)
+          headerBuilder.appendln(s"static_clazz * create_static_${clazz._1}(void);")(0)
           sourceBuilder.append(conc.initialiseStatic(1))
-          sourceBuilder.append(conc.codegen(1))
+          sourceBuilder.append(conc.codegen(1, conc))
 
           for (body <- conc.methods) {
-            headerBuilder.appendln(s"variable** ${clazz._1}_${body._2.mangle}(pony_clazz*, variable**);")(0)
-            sourceBuilder.appendln(s"variable**\n${clazz._1}_${body._2.mangle}(pony_clazz* this, variable** args)")(0)
-            sourceBuilder.append(body._2.codegen(0))
+            headerBuilder.appendln(body._2.header(conc))(0)
+            sourceBuilder.append(body._2.codegen(1, conc))
           }
         }
         case _ =>
@@ -62,10 +60,14 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
 
     headerBuilder.append("#endif")
 
-    println(headerBuilder.mkString)
-    println("\n\n\n\n\n")
-    println(sourceBuilder.mkString)
+    val header = new PrintWriter(output ++ "/pony_class_ids.h", "UTF-8")
+    val source = new PrintWriter(output ++ "/pony_class_ids.c", "UTF-8")
 
+    header.println(headerBuilder.mkString)
+    source.println(sourceBuilder.mkString)
+
+    header.close()
+    source.close()
   }
 
 }

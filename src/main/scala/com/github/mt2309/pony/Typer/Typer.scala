@@ -14,13 +14,13 @@ import annotation.tailrec
 
 trait Typer extends NotNull with Positional {
   def scope: Scope
-  def codegen(implicit indent: Int): String
+  def codegen(implicit indent: Int, currentClazz: ConcreteClass): String
 }
 
 final case class PreTypedModule(imports: CompilationUnits, classes: Map[TypeId, ModuleMember])(implicit val scope: Map[TypeId, ModuleMember], val filename: Filename) extends NotNull with Positional
 
 final case class TypedModule(imports:CompilationUnits, classes: Map[TypeId, TModuleMember])(implicit val scope: Scope) extends Typer {
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 sealed abstract class TModuleMember(val name: TypeId)(implicit val scope: Scope) extends Typer {
@@ -38,7 +38,7 @@ final case class EmptyType(override val name: TypeId)(implicit override val scop
 
   override val defaultConstructor = "NULL;\n"
 
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 final case class TPrimitive(typename: TypeId, cTypename: String,  override val defaultConstructor: String)
@@ -55,7 +55,7 @@ final case class TPrimitive(typename: TypeId, cTypename: String,  override val d
 
   override def methods = Map.empty
 
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 
   //  override def equals(that: Any): Boolean = that match {
 //    case t:TPrimitive => this.typename == t.typename
@@ -71,7 +71,7 @@ final case class TDeclare(typename: TypeId, is: TIs, declareMap: TDeclareMap)(im
 
   override def variables = Map.empty
 
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 final case class TType(n: TypeId, ofType: TOfType, is: TIs)(implicit override val scope: Scope) extends TModuleMember(n) {
@@ -81,7 +81,7 @@ final case class TType(n: TypeId, ofType: TOfType, is: TIs)(implicit override va
 
   override def variables = Map.empty
 
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 abstract class PonyClass(override val name: TypeId, val formalArgs: FormalParams, val is:TIs, val typeBody: TTypeBody)(implicit override val scope: Scope) extends TModuleMember(name) {
@@ -99,7 +99,7 @@ abstract class ConcreteClass
 {
 
   def initialiseStatic(implicit indent: Int): String = {
-    val b = new StringBuilder(s"static_clazz * create_static_$name()\n{\n")
+    val b = new StringBuilder(s"static_clazz * create_static_$name(void)\n{\n")
 
     b.appendln(s"pony_meth * array = NULL;")
     b.appendln(s"unsigned int * id_array = NULL;")
@@ -108,7 +108,7 @@ abstract class ConcreteClass
       b.appendTo(s"array = create_meths(${methods.size}")
 
       for (meth <- methods) {
-        b.append(s", ${name}_${meth._2.mangle}")
+        b.append(s", ${name}_${meth._1}")
       }
 
       b.append(");\n")
@@ -124,26 +124,27 @@ abstract class ConcreteClass
     b.mkString
   }
 
-  override def codegen(implicit indent: Int): String = {
-    val b = new StringBuilder(s"pony_clazz * ${name}_construct()\n{\n")
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
+    val b = new StringBuilder(s"pony_clazz * ${name}_construct(void)\n{\n")
 
     b.appendln("pony_clazz * clazz = malloc(sizeof(pony_clazz));")
-
-    for (variable <- variables) {
-      b.appendTo(s"variable * ${variable._1} = ${TyperHelper.createVariable(variable._2)}")
-    }
 
     b.appendln(s"variable ** array = NULL;")
     b.appendln(s"unsigned int * id_array = NULL;")
 
     if (variables.size > 0) {
-      b.appendTo(s"array = create_args(${variables.size},")
+
+      for (variable <- variables) {
+        b.appendln(s"${TyperHelper.typeToClass(variable._2)} ${variable._1} = ${TyperHelper.typeToConstructor(variable._2)};\n")
+      }
+
+      b.appendTo(s"array = create_args(${variables.size}")
       for (variable <- variables) {
         b.append(s", ${TyperHelper.createVariable(variable._2)}(${variable._1})")
       }
 
       b.append(");\n")
-      b.appendTo(s"id_array = create_ids(${variables.size},")
+      b.appendTo(s"id_array = create_ids(${variables.size}")
       for (variable <- variables) {
         b.append(s", ${variable._1.hashCode.abs}")
       }
@@ -169,23 +170,23 @@ final case class TActor(n: TypeId, f: FormalParams, i:TIs, t: TTypeBody)(implici
 final case class TObject(n: TypeId, f: FormalParams, i:TIs, t: TTypeBody)(implicit override val scope: Scope)  extends ConcreteClass(n,f,i,t)
 final case class TTrait(n: TypeId, f: FormalParams, i:TIs, t: TTypeBody)(implicit override val scope: Scope)   extends PonyClass(n,f,i,t) {
   override def variables = Map.empty
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 final case class TParam(name: ID, ofType: Option[TOfType])(implicit val scope: Scope)
 
 final case class TCombinedArgs(formalArgs: FormalParams, args: TParams)(implicit val scope: Scope) extends Typer {
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 final case class TArg(expr: Option[TExpr], ofType: Option[TOfType], assign: Option[TExpr])(implicit val scope: Scope) extends Typer {
-  override def codegen(implicit indent: Int) = expr.map(_.codegen).getOrElse("") ++ assign.map(_.codegen).getOrElse("")
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = expr.map(_.codegen).getOrElse("") ++ assign.map(_.codegen).getOrElse("")
 }
 
 sealed trait TTypeElement extends Typer {
   def isSubType(that: TTypeElement): Boolean
   def name: String
   def defaultConstructor: String
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 final case class TPartialType(typeclass: TTypeClass)(implicit val scope: Scope) extends TTypeElement {
@@ -245,7 +246,7 @@ final case class TLambda(mode: TMode, args: TArgs, result: TParams, throws: Bool
 }
 
 sealed abstract class TMode(implicit val scope: Scope)              extends Typer {
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 final case class TReadOnly(implicit override val scope: Scope)      extends TMode
 final case class TImmutable(implicit override val scope: Scope)     extends TMode
@@ -269,20 +270,20 @@ final case class TIs(list: List[TTypeClass])(implicit val scope: Scope) extends 
 
   def isSubType(that: TTypeElement): Boolean = ???
 
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 final case class TDeclareMap(map: List[TPonyMap])(implicit val scope: Scope) extends Typer {
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
-final case class TPonyMap(from: TBodyContent, to: ID)(implicit val scope: Scope) extends Typer {
-  override def codegen(implicit indent: Int): String = ???
 
+final case class TPonyMap(from: TBodyContent, to: ID)(implicit val scope: Scope) extends Typer {
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 final case class TOfType(typeList: Set[TTypeElement])(implicit val scope: Scope) extends Typer {
 
-  override def codegen(implicit indent: Int): String = {
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
     if (this.isSubType(Some(primTOfType)))
       "0;\n"
     else
@@ -343,18 +344,18 @@ final case class TOfType(typeList: Set[TTypeElement])(implicit val scope: Scope)
 }
 
 final case class TTypeBody(body: Map[ID,TBodyContent])(implicit val scope: Scope) extends Typer {
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 
 
 final case class TMethodContent(mode: TMode, id:ID, combinedArgs: TCombinedArgs)(implicit val scope: Scope) extends Typer {
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 final case class TExpr(unary: TUnary, operator: List[(Operator, TUnary)])(implicit val scope: Scope) extends Typer {
 
-  override def codegen(implicit indent: Int): String = {
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
     val u = unary.codegen
     if (operator.isEmpty)
       u
@@ -413,40 +414,45 @@ final case class TExpr(unary: TUnary, operator: List[(Operator, TUnary)])(implic
 }
 
 final case class TCaseBlock(c: Option[TCaseSubBlock], block: TBlock)(implicit val scope: Scope) extends Typer {
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 abstract class TCaseSubBlock(implicit val scope: Scope) extends Typer {
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 final case class TCaseIf(expr: TExpr)(implicit override val scope: Scope) extends TCaseSubBlock {
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 final case class TCaseVarList(varList: List[TCaseVar])(implicit override val scope: Scope) extends TCaseSubBlock {
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 final case class TCaseVar(expr: Option[TExpr], forVar: TForVar)(implicit val scope: Scope) extends Typer {
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 final case class TForVar(id: ID, ofType: Option[TOfType])(implicit val scope: Scope) extends Typer {
-  override def codegen(implicit indent: Int): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 
 sealed abstract class TLValue(implicit val scope: Scope) extends Typer {
-  override def codegen(implicit indent: Int): String
-  def constructor(implicit indent: Int): String
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String
+  def constructor(implicit indent: Int, currentClazz: ConcreteClass): String
+  def ofType: Option[TOfType]
 }
 
 final case class TLValueVar(nVar: TVarDec)(implicit override val scope: Scope) extends TLValue {
-  override def codegen(implicit indent: Int) = nVar.codegen
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = nVar.codegen
 
-  override def constructor(implicit indent: Int) = nVar.constructor
+  override def constructor(implicit indent: Int, currentClazz: ConcreteClass) = nVar.constructor
+
+  override def ofType: Option[TOfType] = nVar.ofType
 }
 final case class TLValueCommand(command: TCommand)(implicit override val scope: Scope) extends TLValue {
-  override def codegen(implicit indent: Int) = command.codegen
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = command.codegen
 
-  override def constructor(implicit indent: Int) = command.constructor
+  override def constructor(implicit indent: Int, currentClazz: ConcreteClass) = command.constructor
+
+  override def ofType: Option[TOfType] = command.extractOfType
 }
 
 sealed abstract class TUnary(unaryOps: List[UnaryOp])(implicit val scope: Scope) extends Typer {
@@ -456,7 +462,7 @@ sealed abstract class TUnary(unaryOps: List[UnaryOp])(implicit val scope: Scope)
 final case class TUnaryCommand(un: List[UnaryOp], command: TCommand)(implicit override val scope: Scope) extends TUnary(un) {
   override def extractOfType = command.extractOfType
 
-  override def codegen(implicit indent: Int) = {
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
     val b = new StringBuilder
 
     for (op <- un)
@@ -471,7 +477,7 @@ final case class TUnaryCommand(un: List[UnaryOp], command: TCommand)(implicit ov
 final case class TUnaryLambda(un: List[UnaryOp], lambda: TLambda)(implicit override val scope: Scope) extends TUnary(un) {
   override def extractOfType = Some(new TOfType(Set(lambda)))
 
-  override def codegen(implicit indent: Int) = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 final case class TCommand(first: TFirstCommand, second: Option[TSecondCommand])(implicit val scope: Scope) extends Typer {
@@ -486,7 +492,7 @@ final case class TCommand(first: TFirstCommand, second: Option[TSecondCommand])(
     }
   }
 
-  override def codegen(implicit indent: Int) = s"${first.codegen}${if (second.isDefined) second.get.codegen else ""}"
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = s"${first.codegen}${if (second.isDefined) second.get.codegen else ""}"
 
   def constructor: String = ""
 }
@@ -498,13 +504,13 @@ sealed abstract class TFirstCommand extends Typer {
 final case class TCommandExpr(expr: TExpr)(implicit val scope: Scope) extends TFirstCommand with Typer {
   override def extractOfType: Option[TOfType] = expr.extractOfType
 
-  override def codegen(implicit indent: Int) = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 final case class TCommandArgs(args: List[TArg])(implicit val scope: Scope) extends TFirstCommand with Typer {
   override def extractOfType: Option[TOfType] = ???
 
-  override def codegen(implicit indent: Int) = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 sealed abstract class TAtom extends TFirstCommand with Typer
@@ -512,49 +518,49 @@ sealed abstract class TAtom extends TFirstCommand with Typer
 final class TThis(implicit val scope: Scope) extends TAtom {
   override def extractOfType = None
 
-  override def codegen(implicit indent: Int) = "this"
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = "this"
 }
 
 final class  TTrue(implicit val scope: Scope) extends TAtom {
   override def extractOfType = Some(boolOfType)
 
-  override def codegen(implicit indent: Int) = "true"
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = "true"
 }
 
 final class  TFalse(implicit val scope: Scope) extends TAtom {
   override def extractOfType = Some(boolOfType)
 
-  override def codegen(implicit indent: Int) = "false"
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = "false"
 }
 
 final case class TPonyInt(i: Int)(implicit val scope: Scope) extends TAtom with Typer {
   override def extractOfType = Some(intOfType)
 
-  override def codegen(implicit indent: Int) = i.toString
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = i.toString
 }
 
 final case class TPonyDouble(d: Double)(implicit val scope: Scope) extends TAtom with Typer {
   override def extractOfType = Some(doubleOfType)
 
-  override def codegen(implicit indent: Int) = d.toString
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = d.toString
 }
 
 final case class TPonyString(s: String)(implicit val scope: Scope) extends TAtom with Typer {
   override def extractOfType = Some(stringOfType)
 
-  override def codegen(implicit indent: Int) = "\"" ++ s ++ "\""
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = "\"" ++ s ++ "\""
 }
 
 final case class TPonyID(i: ID)(implicit val scope: Scope) extends TAtom with Typer {
   override def extractOfType = scope.searchID(i)(this.pos)
 
-  override def codegen(implicit indent: Int) = i
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = i
 }
 
 final case class TPonyTypeId(t: TypeId)(implicit val scope: Scope, implicit val checker: LowerTypeChecker) extends TAtom with Typer {
   override def extractOfType = Some(new TOfType(Set(new TTypeClass(scope.search(t, checker)(this.pos)))))
 
-  override def codegen(implicit indent: Int) = t
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = t
 }
 
 sealed abstract class TSecondCommand(implicit val scope: Scope) extends Typer {
@@ -564,11 +570,13 @@ sealed abstract class TSecondCommand(implicit val scope: Scope) extends Typer {
 final case class TSecondCommandArgs(args: TArgs)(implicit override val scope: Scope) extends TSecondCommand with Typer {
   override def extractOfType(fst: Option[TOfType]): Option[TOfType] = ???
 
-  override def codegen(implicit indent: Int) = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
 final case class TCommandCall(id: TBodyContent, formalArgs: TFormalArgs, args: TArgs)(implicit override val scope: Scope) extends TSecondCommand with Typer {
   override def extractOfType(fst: Option[TOfType]): Option[TOfType] = ???
 
-  override def codegen(implicit indent: Int) = s"${id.scope.currentClass.name}_${id.name}(this, ${ArgsHelper.codeGen(args)}})"
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
+    s"${id.scope.currentClass.name}_${id.name}(this, ${ArgsHelper.codeGen(args)})"
+  }
 }

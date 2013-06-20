@@ -16,11 +16,34 @@ object TyperHelper {
         x.maximalType.cTypename
       }
       else {
-        "pony_clazz * "
+        "pony_clazz *"
       }
     }
     case None => {
-      "pony_clazz * "
+      "pony_clazz *"
+    }
+  }
+
+  def isPrimitive(opt: Option[TOfType]): Boolean = opt.exists(_.isPrimitive)
+
+  def isSingleRes(opt: Option[TOfType]): Boolean = opt match {
+    case Some(x) => { true
+
+    }
+    case None => true
+  }
+
+  def structName(opt: Option[TOfType]): String = opt match {
+    case Some(x) => {
+      if (x.isPrimitive) {
+        x.maximalType.cTypename ++ "_value"
+      }
+      else {
+        "clazz_value"
+      }
+    }
+    case None => {
+      "clazz_value"
     }
   }
 
@@ -38,7 +61,7 @@ object TyperHelper {
   }
 
 
-  def typeToConstructor(opt: Option[TOfType]): String = opt match {
+  def typeToConstructor(opt: Option[TOfType])(implicit clazz: ConcreteClass): String = opt match {
     case Some(x) => {
       if (x.isPrimitive) {
         x.maximalType.defaultConstructor
@@ -47,7 +70,7 @@ object TyperHelper {
         "NULL"
       }
       else {
-        x.codegen(0)
+        x.codegen(0, clazz)
       }
     }
     case None => "NULL"
@@ -93,11 +116,11 @@ object ArgsHelper {
     b.mkString
   }
 
-  def codeGen(args: TArgs): String = {
+  def codeGen(args: TArgs)(implicit clazz: ConcreteClass): String = {
     val b = new StringBuilder
 
     for (arg <- args) {
-      b.append(arg.codegen(0) ++ ",")
+      b.append(arg.codegen(0, clazz) ++ ",")
     }
 
 

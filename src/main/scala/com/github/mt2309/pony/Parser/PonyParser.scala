@@ -364,9 +364,9 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   // Modes
   private def mode: Parser[Mode] = positioned {immutable | mutable | unique | modeExpr}
 
-  private def immutable: Parser[Mode] = (("[:" ~ "imm" ~  "]") | "!") ^^ {s => Immutable}
-  private def mutable: Parser[Mode]   = (("[:" ~ "mut" ~  "]") | "~") ^^ {s => Mutable}
-  private def unique: Parser[Mode]    = (("[:" ~ "uniq" ~ "]") | "@") ^^ {s => Unique}
+  private def immutable: Parser[Mode] = ("[:" ~ "imm" ~ "]" | "!") ^^ {s => Immutable}
+  private def mutable: Parser[Mode]   = ("[:" ~ "mut" ~ "]" | "~") ^^ {s => Mutable}
+  private def unique: Parser[Mode]    = ("[:" ~ "uniq" ~ "]" | "@") ^^ {s => Unique}
   private def modeExpr: Parser[ModeExpr] = positioned {
     "[:" ~> expr <~ "]" ^^ {new ModeExpr(_)}
   }
