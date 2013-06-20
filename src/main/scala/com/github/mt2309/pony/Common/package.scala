@@ -39,4 +39,8 @@ package object Common {
 
     def searchType(t: TypeId): Option[TModuleMember] = c._2.lookUpType(t)
   }
+
+  implicit class TabbedBuilder(val builder: StringBuilder) {
+    def appendln(s:String)(implicit n: Int) = builder.append(" "*n*2 ++ s ++ "\n")
+  }
 }

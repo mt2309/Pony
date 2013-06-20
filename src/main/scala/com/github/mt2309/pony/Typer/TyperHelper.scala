@@ -40,7 +40,6 @@ object TyperHelper {
 
   def typeToConstructor(opt: Option[TOfType]): String = opt match {
     case Some(x) => {
-      println(x)
       if (x.isPrimitive) {
         x.maximalType.defaultConstructor
       }
@@ -48,7 +47,7 @@ object TyperHelper {
         "NULL"
       }
       else {
-        x.defaultConstructor
+        x.codegen(0)
       }
     }
     case None => "NULL"
@@ -98,7 +97,7 @@ object ArgsHelper {
     val b = new StringBuilder
 
     for (arg <- args) {
-      b.append(arg.codeGen ++ ",")
+      b.append(arg.codegen(0) ++ ",")
     }
 
 

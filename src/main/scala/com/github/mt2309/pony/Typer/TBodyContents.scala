@@ -10,25 +10,8 @@ import com.github.mt2309.pony.Common._
 
 sealed abstract class TBodyContent(val name: ID, val isAbstract: Boolean = false)(implicit val scope: Scope) extends Typer {
   def mangle: String
-
-  def codeGen: String
+  override def codegen(implicit indent: Int): String
 }
-
-final case class TBlock(contents: List[TBlockContent], catchBlock: Option[TBlock], alwaysBlock: Option[TBlock])(implicit val scope: Scope) extends TBlockContent with Typer {
-  def codeGen: String = {
-    val b = new StringBuilder("{\n")
-
-    for (c <- contents) {
-      b.append(c.codeGen)
-    }
-
-    b.append("}\n")
-
-
-    b.mkString
-  }
-}
-
 
 final case class TField(id: ID, ofType: Option[TOfType], expr: Option[TExpr])(implicit override val scope: Scope) extends TBodyContent(id, expr.isEmpty) {
   override def mangle: String = {
@@ -42,7 +25,7 @@ final case class TField(id: ID, ofType: Option[TOfType], expr: Option[TExpr])(im
       s"${id}_${scope.currentClass.name}"
   }
 
-  override def codeGen: String = ???
+  override def codegen(implicit indent: Int): String = ???
 }
 
 final case class TDelegate(id: ID, ofType: Option[TOfType])(implicit override val scope: Scope) extends TBodyContent(name = id) {
@@ -57,13 +40,13 @@ final case class TDelegate(id: ID, ofType: Option[TOfType])(implicit override va
       s"${id}_${scope.currentClass.name}"
   }
 
-  override def codeGen: String = ???
+  override def codegen(implicit indent: Int) = ???
 }
 
 final case class TConstructor(contents: TMethodContent, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty) {
   override def mangle: String = s"${contents.id}_${ArgsHelper.mangle(contents.combinedArgs.args)}"
 
-  override def codeGen: String = block.getOrElse(throw new AbstractMethodNotImplemented("")(this.pos)).codeGen
+  override def codegen(implicit indent: Int) = block.getOrElse(throw new AbstractMethodNotImplemented("")(this.pos)).codegen(1)
 }
 
 final case class TAmbient(contents: TMethodContent, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty) {
@@ -74,7 +57,7 @@ final case class TAmbient(contents: TMethodContent, throws: Boolean, block: Opti
       s"${contents.id}_${ArgsHelper.mangle(contents.combinedArgs.args)}"
   }
 
-  override def codeGen: String = block.getOrElse(throw new AbstractMethodNotImplemented("")(this.pos)).codeGen
+  override def codegen(implicit indent: Int) = block.getOrElse(throw new AbstractMethodNotImplemented("")(this.pos)).codegen(1)
 }
 
 final case class TFunction(contents: TMethodContent, results: TParams, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty) {
@@ -85,22 +68,21 @@ final case class TFunction(contents: TMethodContent, results: TParams, throws: B
       s"${contents.id}_${ArgsHelper.mangle(contents.combinedArgs.args)}"
   }
 
-  override def codeGen: String = {
+  override def codegen(implicit indent: Int) = {
     val b = new StringBuilder("{\n")
 
-    for (result <- results) {
-      b.append(TyperHelper.typeToClass(result.ofType))
-      b.append(" ")
-      b.append(result.name)
-      b.append(" = ")
-      b.append(TyperHelper.typeToConstructor(result.ofType))
-      b.append("\n")
+    for (param <- contents.combinedArgs.args.zipWithIndex) {
+      b.appendln(s"${TyperHelper.typeToClass(param._1.ofType)} ${param._1.name} = args[${param._2}];")
     }
 
-    b.append(block.getOrElse(throw new AbstractMethodNotImplemented(s"${contents.id} in class ${scope.currentClass.name}")(this.pos)).codeGen)
+    for (result <- results) {
+      b.appendln(s"${TyperHelper.typeToClass(result.ofType)} ${result.name} = ${TyperHelper.typeToConstructor(result.ofType)};")
+    }
 
-    b.append("\nreturn_label:\n")
-    b.append("cleanup:\n\n")
+    b.append(block.getOrElse(throw new AbstractMethodNotImplemented(s"${contents.id} in class ${scope.currentClass.name}")(this.pos)).codegen)
+
+    b.appendln("\nreturn_label:")
+    b.appendln("cleanup:")
     b.append(s"return create_args(${results.length}")
 
     for (result <- results) {
@@ -122,5 +104,5 @@ final case class TMessage(contents: TMethodContent, block: Option[TBlock])(impli
       s"${contents.id}_${ArgsHelper.mangle(contents.combinedArgs.args)}"
   }
 
-  override def codeGen: String = block.getOrElse(throw new AbstractMethodNotImplemented("")(this.pos)).codeGen
+  override def codegen(implicit indent: Int) = block.getOrElse(throw new AbstractMethodNotImplemented("")(this.pos)).codegen(1)
 }

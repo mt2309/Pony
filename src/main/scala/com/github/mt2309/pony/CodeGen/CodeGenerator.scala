@@ -1,6 +1,6 @@
 package com.github.mt2309.pony.CodeGen
 
-import com.github.mt2309.pony.Common.TypeId
+import com.github.mt2309.pony.Common.{TypeId,TabbedBuilder}
 
 import com.github.mt2309.pony.CompilationUnit.CompilationUnit
 
@@ -23,37 +23,35 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
     val headerBuilder = new StringBuilder(CodeGenerator.headerString)
     val sourceBuilder = new StringBuilder(CodeGenerator.sourceString)
 
-    sourceBuilder.append(s"\n\nvoid initialise(void)\n{\n\tclazz_set_size = $longArraySize;\n")
+    sourceBuilder.append(s"\n\nvoid initialise(void)\n{\n  clazz_set_size = $longArraySize;\n")
 
     // Generate the header
     for (clazz <- classes) {
       headerBuilder.append(s"unsigned long * ${clazz._1}_id;\n")
-
-      sourceBuilder.append(s"\t${clazz._1}_id = initialise_bit_set(${clazz._3});\n")
-
-
-      for (typebody <- clazz._2.methods) {
-        headerBuilder.append(s"pony_clazz** ${clazz._1}_${typebody._2.mangle}(pony_clazz* this, pony_clazz** args);\n")
-      }
+      sourceBuilder.appendln(s"${clazz._1}_id = initialise_bit_set(${clazz._3});")(1)
     }
 
+    headerBuilder.append("\n")
     sourceBuilder.append("}\n\n")
 
     for (clazz <- classes) {
       clazz._2 match {
         case conc: ConcreteClass => {
-          headerBuilder.append(s"pony_clazz * ${clazz._1}_construct();\n")
-          sourceBuilder.append(conc.defaultConstructor)
+          headerBuilder.appendln(s"pony_clazz * ${clazz._1}_construct();")(0)
+          sourceBuilder.append(conc.codegen(0))
 
           for (body <- conc.methods) {
-            headerBuilder.append(s"pony_clazz** ${clazz._1}_${body._2.mangle}(pony_clazz* this, pony_clazz** args);\n")
-            sourceBuilder.append(s"pony_clazz**\n${clazz._1}_${body._2.mangle}(pony_clazz* this, pony_clazz** args)\n")
-            sourceBuilder.append(body._2.codeGen)
+            headerBuilder.append(s"variable** ${clazz._1}_${body._2.mangle}(pony_clazz*, variable**);\n")
+            sourceBuilder.append(s"variable**\n${clazz._1}_${body._2.mangle}(pony_clazz* this, variable** args)\n")
+            sourceBuilder.append(body._2.codegen(0))
           }
         }
         case _ =>
       }
     }
+
+    headerBuilder.append("#endif")
+
     println(headerBuilder.mkString)
     println("\n\n\n\n\n")
     println(sourceBuilder.mkString)
