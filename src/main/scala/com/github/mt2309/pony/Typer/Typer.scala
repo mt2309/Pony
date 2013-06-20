@@ -97,34 +97,62 @@ abstract class PonyClass(override val name: TypeId, val formalArgs: FormalParams
 abstract class ConcreteClass
 (override val name: TypeId, override val formalArgs: FormalParams, override val is:TIs, override val typeBody: TTypeBody)(implicit override val scope: Scope) extends PonyClass(name, formalArgs, is, typeBody)
 {
+
+  def initialiseStatic(implicit indent: Int): String = {
+    val b = new StringBuilder(s"static_clazz * create_static_$name()\n{\n")
+
+    b.appendln(s"pony_meth * array = NULL;")
+    b.appendln(s"unsigned int * id_array = NULL;")
+
+    if (methods.size > 0) {
+      b.appendTo(s"array = create_meths(${methods.size}")
+
+      for (meth <- methods) {
+        b.append(s", ${name}_${meth._2.mangle}")
+      }
+
+      b.append(");\n")
+      b.appendTo(s"id_array = create_ids(${methods.size}")
+
+      for (meth<- methods) {
+        b.append(s", ${meth._1.hashCode.abs}")
+      }
+      b.append(");\n")
+    }
+
+    b.appendln(s"return initialise_static_class(${name}_id, ${methods.size}, id_array, array);\n}\n\n")
+    b.mkString
+  }
+
   override def codegen(implicit indent: Int): String = {
     val b = new StringBuilder(s"pony_clazz * ${name}_construct()\n{\n")
 
-    b.appendln("pony_clazz * clazz = malloc(sizeof(pony_clazz));")(1)
+    b.appendln("pony_clazz * clazz = malloc(sizeof(pony_clazz));")
 
     for (variable <- variables) {
-      b.append(s"\tvariable * ${variable._1} = ${TyperHelper.createVariable(variable._2)}")
+      b.appendTo(s"variable * ${variable._1} = ${TyperHelper.createVariable(variable._2)}")
     }
 
-    b.appendln(s"variable ** array = NULL;")(1)
-    b.appendln(s"unsigned long * id_array = NULL;")(1)
+    b.appendln(s"variable ** array = NULL;")
+    b.appendln(s"unsigned int * id_array = NULL;")
 
     if (variables.size > 0) {
-      b.append(1,"array = create_args(${variables.size},")
+      b.appendTo(s"array = create_args(${variables.size},")
       for (variable <- variables) {
         b.append(s", ${TyperHelper.createVariable(variable._2)}(${variable._1})")
       }
 
       b.append(");\n")
-      b.append("\tid_array = create_ids(${variables.size},")
+      b.appendTo(s"id_array = create_ids(${variables.size},")
       for (variable <- variables) {
         b.append(s", ${variable._1.hashCode.abs}")
       }
       b.append(");\n")
     }
 
+    b.appendln(s"create_instance_variables(clazz, array, id_array, ${variables.size});")
 
-    b.appendln("return clazz;\n}\n")(1)
+    b.appendln("return clazz;\n}\n")
     b.mkString
   }
 

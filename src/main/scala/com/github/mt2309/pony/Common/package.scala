@@ -42,5 +42,6 @@ package object Common {
 
   implicit class TabbedBuilder(val builder: StringBuilder) {
     def appendln(s:String)(implicit n: Int) = builder.append(" "*n*2 ++ s ++ "\n")
+    def appendTo(s:String)(implicit n: Int) = builder.append(" "*n*2 ++ s)
   }
 }

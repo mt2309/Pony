@@ -18,17 +18,24 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
   def codeGen(): Unit = {
     val classes: IndexedSeq[(TypeId, TModuleMember, Int)] = (modules.map(_.classes).flatten ++ tPrimitiveTypes.map(t => t.typename -> t)).zipWithIndex.map(t => (t._1._1, t._1._2, t._2))
 
-    val longArraySize = classes.size / 64 + 1
+    val intArraySize = classes.size / 64 + 1
 
     val headerBuilder = new StringBuilder(CodeGenerator.headerString)
     val sourceBuilder = new StringBuilder(CodeGenerator.sourceString)
 
-    sourceBuilder.append(s"\n\nvoid initialise(void)\n{\n  clazz_set_size = $longArraySize;\n")
+    sourceBuilder.append(s"\n\nvoid initialise(void)\n{\n  clazz_set_size = $intArraySize;\n")
 
     // Generate the header
     for (clazz <- classes) {
-      headerBuilder.append(s"unsigned long * ${clazz._1}_id;\n")
+      headerBuilder.append(s"unsigned int * ${clazz._1}_id;\n")
       sourceBuilder.appendln(s"${clazz._1}_id = initialise_bit_set(${clazz._3});")(1)
+
+      if (clazz._2.isInstanceOf[ConcreteClass]) {
+        sourceBuilder.appendln(s"static_${clazz._1} = create_static_${clazz._1}();")(1)
+      }
+      else {
+        sourceBuilder.appendln("")(1)
+      }
     }
 
     headerBuilder.append("\n")
@@ -38,11 +45,14 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
       clazz._2 match {
         case conc: ConcreteClass => {
           headerBuilder.appendln(s"pony_clazz * ${clazz._1}_construct();")(0)
-          sourceBuilder.append(conc.codegen(0))
+          headerBuilder.appendln(s"static_clazz * static_${clazz._1} = NULL;")(0)
+          headerBuilder.appendln(s"static_clazz * create_static_${clazz._1}();")(0)
+          sourceBuilder.append(conc.initialiseStatic(1))
+          sourceBuilder.append(conc.codegen(1))
 
           for (body <- conc.methods) {
-            headerBuilder.append(s"variable** ${clazz._1}_${body._2.mangle}(pony_clazz*, variable**);\n")
-            sourceBuilder.append(s"variable**\n${clazz._1}_${body._2.mangle}(pony_clazz* this, variable** args)\n")
+            headerBuilder.appendln(s"variable** ${clazz._1}_${body._2.mangle}(pony_clazz*, variable**);")(0)
+            sourceBuilder.appendln(s"variable**\n${clazz._1}_${body._2.mangle}(pony_clazz* this, variable** args)")(0)
             sourceBuilder.append(body._2.codegen(0))
           }
         }
