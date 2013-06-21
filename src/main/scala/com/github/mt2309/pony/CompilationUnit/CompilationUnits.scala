@@ -10,11 +10,11 @@ import scala.util.parsing.input.Position
  * Time: 16:00
  */
 
-class UnqualifiedCompilationUnits(val units: Set[CompilationUnit]) extends AnyVal {
-  def lookUpType(name: TypeId): Option[TModuleMember] = units.find(p => p.searchType(name).isDefined).map(_.searchType(name)).flatten
+case class UnqualifiedCompilationUnits(units: Set[CompilationUnit]) extends AnyVal {
+  def lookUpType(name: TypeId): Option[TModuleMember] = units.find(p => p.searchType(name).isDefined).flatMap(_.searchType(name))
 }
 
-class QualifiedCompilationUnits(val units: Map[TypeId, CompilationUnit]) extends AnyVal {
+case class QualifiedCompilationUnits(units: Map[TypeId, CompilationUnit]) extends AnyVal {
   def lookUpType(name: TypeId, qualifier: TypeId)(implicit pos: Position): Option[TModuleMember] = {
     units.getOrElse(qualifier, throw new ModuleNotFoundException(s"Module typeClass $qualifier not found")).searchType(name)
   }

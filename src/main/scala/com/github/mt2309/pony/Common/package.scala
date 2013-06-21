@@ -38,6 +38,10 @@ package object Common {
     }
 
     def searchType(t: TypeId): Option[TModuleMember] = c._2.lookUpType(t)
+
+    def size: Int = c._1.units.size + c._2.units.size
+
+    override def toString = c._1.toString ++ c._2.toString
   }
 
   implicit class TabbedBuilder(val builder: StringBuilder) {

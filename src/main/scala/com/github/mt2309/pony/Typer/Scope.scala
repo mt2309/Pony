@@ -17,29 +17,34 @@ final case class ClassData(currentClass: Option[ModuleMember] = None, isStatic: 
   def name = currentClass.map(_.typeName).getOrElse("Outside class")
 }
 
-final case class Scope(typeScope: TypeScope = primScope,
+final case class Scope(typeScope: TypeScope = initialScope,
                        unTypedScope: UnTypedScope = Map.empty,
                        imports: CompilationUnits = new QualifiedCompilationUnits(Map.empty) -> new UnqualifiedCompilationUnits(Set.empty),
                        varScope: VariableScope = Map.empty, // Could include constants here: PI, E etc?
                        methScope: MethScope = Map.empty,
                        isList: Option[TIs] = None,
                        currentClass: ClassData = new ClassData,
+                       checker: LowerTypeChecker = new LowerTypeChecker(Set.empty),
                        filename: Filename = "Primitive") extends NotNull
 {
   def updateScope(id: ID, of: Option[TOfType])(implicit pos: Position): Scope = {
-    if (varScope.contains(id)) {
-      throw new VariableShadowingException(s"Variable $id, of type $of shadows variable with type ${this.varScope.get(id)}")(pos, this)
-    }
+//    if (varScope.contains(id)) {
+//      throw new VariableShadowingException(s"Variable $id, of type $of shadows variable with type ${this.varScope(id)}")(pos, this)
+//    }
     val cp: Scope = this.copy(varScope = this.varScope + (id -> of))
     cp
   }
 
+  def updateScope(id: ID, fun: TBodyContent): Scope = {
+    this.copy(methScope = methScope + (id -> fun))
+  }
+
   @tailrec
-  def updateScope(varMap: Map[ID, Option[TOfType]], lower: LowerTypeChecker)(implicit pos: Position): Scope = {
+  def updateScope(varMap: Map[ID, Option[TOfType]])(implicit pos: Position): Scope = {
     if (varMap.isEmpty)
       this
     else
-      this.updateScope(varMap.head._1, varMap.head._2).updateScope(varMap.tail, lower)
+      this.updateScope(varMap.head._1, varMap.head._2).updateScope(varMap.tail)
   }
 
   def updateScope(typeId: TypeId)(implicit pos: Position): Scope = {
@@ -51,13 +56,15 @@ final case class Scope(typeScope: TypeScope = primScope,
     }
   }
 
-  def mergeScope(that: Scope): Scope = this.copy(varScope = varScope ++ that.varScope)
+  def mergeScope(that: Scope): Scope = {
+    this.copy(varScope = varScope ++ that.varScope, methScope = methScope ++ that.methScope)
+  }
 
   def setClass(optClazz: Option[ModuleMember]) = {
     this.copy(currentClass = currentClass.copy(currentClass = optClazz, isStatic = optClazz.exists(_.isStatic)))
   }
 
-  def search(tClass: TypeClass, checker: LowerTypeChecker): TModuleMember = {
+  def search(tClass: TypeClass): TModuleMember = {
     val p: Option[TModuleMember] = tPrimitiveTypes.find(_.typename == tClass.name)
     val i: Option[TModuleMember] = if (p.isDefined) p else imports.searchType(tClass)
     val t: Option[TModuleMember] = if (i.isDefined) i else typeScope.get(tClass.name)
@@ -68,18 +75,16 @@ final case class Scope(typeScope: TypeScope = primScope,
     }
     else {
       val unTyped = unTypedScope.getOrElse(tClass.name, throw new TypeClassNotFoundException(s"${tClass.name} not found in ${tClass.fileName}")(tClass.pos, this))
-      val scope = new Scope(filename = unTyped._1.fileName, typeScope = this.typeScope)
+      val scope = this.copy(filename = unTyped._1.fileName)
       checker.checkClass(unTyped._1, scope)
     }
   }
 
-//  def search(t: TTypeClass): TModuleMember = t.moduleMember
+  def search(m: ModuleMember): TModuleMember = search(m.typeName)(m.pos)
 
-  def search(m: ModuleMember, c: LowerTypeChecker): TModuleMember = search(m.typeName, c)(m.pos)
-
-  def checkIsList(i: Is, c: LowerTypeChecker)(implicit pos: Position): Boolean = {
+  def checkIsList(i: Is)(implicit pos: Position): Boolean = {
     for (mem <- i.list) {
-      search(mem.name,c)
+      search(mem.name)
     }
 
     true
@@ -103,13 +108,17 @@ final case class Scope(typeScope: TypeScope = primScope,
       val clazzList: Set[TModuleMember] = for (t <- of.typeList) yield t match {
         case p: TPartialType => p.typeclass.moduleMember
         case t: TTypeClass => t.moduleMember
-        case l: TLambda => throw new LambdaInMethCallException(s"Lambda found in method lookup for for id $id")(pos, this)
-        case TPrimitive(name, _, _) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")(pos, this)
-        case EmptyType(name) => throw new EmptyTypeFound(s"Type Parameter $name found in method call, which have no methods defined on them")(pos, this)
+        case l: TLambda => {
+          throw new LambdaInMethCallException(s"Lambda found in method lookup for for id $id")(pos, this)
+        }
+        case t: TPrimitive => t
+        case EmptyType(name) => {
+          throw new EmptyTypeFound(s"Type Parameter $name found in method call, which have no methods defined on them")(pos, this)
+        }
       }
 
       val methList: Set[TBodyContent] = for (c <- clazzList) yield c match {
-        case TPrimitive(name, _, _) => throw new PrimitiveFound(s"Primitive $name found in method call, which have no methods defined on them")(pos, this)
+        case p: TPrimitive => p.methods.getOrElse(id, throw new MethodNotFoundException(id, p.name)(pos, this))
         case EmptyType(name) => throw new EmptyTypeFound(s"Empty type $name found where it should not be")(pos, this)
         case p: TModuleMember => p.methods.getOrElse(id, throw new MethodNotFoundException(id, p.name)(pos, this))
       }
@@ -135,19 +144,21 @@ final case class Scope(typeScope: TypeScope = primScope,
     case TMessage(contents, block) => (contents.combinedArgs.args.length, 0)
   }
 
-  def search(name: TypeId, checker: LowerTypeChecker)(implicit pos: Position): TModuleMember = {
-    val p: Option[TModuleMember] = tPrimitiveTypes.find(_.typename == name)
-    val t: Option[TModuleMember] = if (p.isDefined) p else typeScope.get(name)
+  def search(name: TypeId)(implicit pos: Position): TModuleMember = {
+    val t: Option[TModuleMember] = typeScope.get(name)
     val i: Option[TModuleMember] = if (t.isDefined) t else imports.searchType(name)
 
     i.getOrElse {
       val unTyped = unTypedScope.getOrElse(name, throw new TypeClassNotFoundException(s"$name not found in $filename")(pos, this))
-      val scope = new Scope(filename = unTyped._1.fileName, typeScope = this.typeScope)
+      val scope = this.copy(filename = unTyped._1.fileName)
       checker.checkClass(unTyped._1, scope)
     }
   }
 
   def searchID(i: ID)(implicit pos: Position): Option[TOfType] = {
-    varScope.getOrElse(i, throw new VariableNotFoundException(s"$i not found")(pos, this))
+    val variable = varScope.get(i)
+    val meth = if (variable.isDefined) variable else methScope.get(i).map(_.ofType)
+
+    meth.getOrElse(throw new VariableNotFoundException(s"$i not found")(pos, this))
   }
 }

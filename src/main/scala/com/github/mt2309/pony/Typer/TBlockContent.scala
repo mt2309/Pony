@@ -98,6 +98,7 @@ final case class TAssignment(lValues: List[TLValue], expr: Option[TExpr])(implic
     val b = new StringBuilder
 
     for (e <- expr) {
+
       b.appendln(s"${TyperHelper.typeToClass(e.extractOfType)} result_${e.hashCode.abs} = ${e.codegen};")
 
       if (TyperHelper.isPrimitive(e.extractOfType) || TyperHelper.isSingleRes(e.extractOfType)) {
@@ -111,13 +112,12 @@ final case class TAssignment(lValues: List[TLValue], expr: Option[TExpr])(implic
       }
     }
 
-
-
     b.mkString
   }
 }
 
-final case class TBlock(contents: List[TBlockContent], catchBlock: Option[TBlock], alwaysBlock: Option[TBlock])(implicit val scope: Scope) extends Typer with TBlockContent {
+final case class TBlock(contents: List[TBlockContent] = List.empty, catchBlock: Option[TBlock] = None, alwaysBlock: Option[TBlock] = None)
+                       (implicit val scope: Scope) extends Typer with TBlockContent {
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
     val b = new StringBuilder
 

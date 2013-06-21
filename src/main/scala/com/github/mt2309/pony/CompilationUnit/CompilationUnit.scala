@@ -17,7 +17,7 @@ import com.github.mt2309.pony.Loader.Loader
  * Date: 25/04/2013
  * Time: 23:28
  */
-final class CompilationUnit(val absolutePath: String, stage: Int) {
+final case class CompilationUnit(absolutePath: String, stage: Int) {
 
   val fileList = loadDir
   val astList: Seq[(Filename, Option[Module])] = for (file <- fileList) yield file._1 -> PonyParser.parse(file)
@@ -37,7 +37,7 @@ final class CompilationUnit(val absolutePath: String, stage: Int) {
   }
 
   def searchType(name: TypeId): Option[TModuleMember] = {
-    typeIt.find(t => t.classes.exists(_._1 == name)).map(_.classes.get(name)).flatten
+    typeIt.find(t => t.classes.exists(_._1 == name)).flatMap(_.classes.get(name))
   }
 
   def compile(output: String): Unit = {

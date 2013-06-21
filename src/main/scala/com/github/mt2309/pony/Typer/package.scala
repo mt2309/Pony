@@ -23,9 +23,7 @@ package object Typer {
   val pScope = new Scope
 
   val void: TPrimitive = new TPrimitive("Void", "void", "(void)0")(pScope)
-
   val bool: TPrimitive = new TPrimitive("Bool", "bool", "false")(pScope)
-
   val pInt: TPrimitive = new TPrimitive("Int", "int", "0")(pScope)
   val pDouble: TPrimitive = new TPrimitive("Double", "double", "0.0")(pScope)
   val pUInt: TPrimitive = new TPrimitive("UInt", "unsigned int", "0")(pScope)
@@ -35,12 +33,10 @@ package object Typer {
 
   val boolOfType = new TOfType(Set(bool))(pScope)
   val intOfType = new TOfType(Set(pInt))(pScope)
+  val voidOfType = new TOfType(Set(void))(pScope)
   val stringOfType = new TOfType(Set(pString))(pScope)
   val doubleOfType = new TOfType(Set(pDouble))(pScope)
   val numericOfType = new TOfType(Set(pInt, pDouble, pUInt))(pScope)
-
-  // this.type - TODO: incomplete
-  val thisOfType = new TOfType(Set())(pScope)
 
   val primitiveTypes: Set[AST.ModuleMember] = Set(new AST.Primitive("Int"), new AST.Primitive("UInt"), new AST.Primitive("Char"))
   val primMap: Map[TypeId, AST.ModuleMember] = primitiveTypes.map(t => t.typeName -> t).toMap
@@ -48,6 +44,8 @@ package object Typer {
   val tPrimitiveTypes: Set[TPrimitive] = Set(pChar, bool, pInt, pDouble, pUInt)
   val primTOfType = new TOfType(tPrimitiveTypes.asInstanceOf[Set[TTypeElement]])(pScope)
   val primScope: TypeScope = tPrimitiveTypes.map(t => t.name -> t).toMap
+
+  val initialScope: TypeScope = primScope ++ ImplicitTraits.implicitTraits
 
   type VariableScope = Map[ID, Option[TOfType]]
   type MethScope = Map[ID, TBodyContent]

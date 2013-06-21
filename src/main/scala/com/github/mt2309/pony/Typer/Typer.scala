@@ -2,7 +2,7 @@ package com.github.mt2309.pony.Typer
 
 import com.github.mt2309.pony.Common._
 import com.github.mt2309.pony.AST._
-import scala.util.parsing.input.Positional
+import util.parsing.input.{NoPosition, Positional}
 import annotation.tailrec
 
 /**
@@ -53,14 +53,14 @@ final case class TPrimitive(typename: TypeId, cTypename: String,  override val d
 
   override def variables = Map.empty
 
-  override def methods = Map.empty
+  override def methods = Map("to" -> ImplicitTraits.range)
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 
-  //  override def equals(that: Any): Boolean = that match {
-//    case t:TPrimitive => this.typename == t.typename
-//    case _ => false
-//  }
+  override def equals(that: Any): Boolean = that match {
+    case t:TPrimitive => this.typename == t.typename
+    case _ => false
+  }
 }
 
 final case class TDeclare(typename: TypeId, is: TIs, declareMap: TDeclareMap)(implicit override val scope: Scope) extends TModuleMember(typename) {
@@ -320,6 +320,9 @@ final case class TOfType(typeList: Set[TTypeElement])(implicit val scope: Scope)
 
   def isSubType(that: Option[TOfType]): Boolean = {
 
+    println(s"this = $this")
+    println(s"that = $that")
+
     if (that.isDefined) {
       (for (t <- this.typeList) yield {
         (for (tt <- that.get.typeList) yield tt == t || t.isSubType(tt)).reduce(_ || _)
@@ -340,7 +343,8 @@ final case class TOfType(typeList: Set[TTypeElement])(implicit val scope: Scope)
 
   def size = typeList.size
 
-  def intersection(that: TOfType): TOfType = ???
+  def intersection(that: TOfType): TOfType = new TOfType(typeList.intersect(that.typeList))
+
 }
 
 final case class TTypeBody(body: Map[ID,TBodyContent])(implicit val scope: Scope) extends Typer {
@@ -386,7 +390,7 @@ final case class TExpr(unary: TUnary, operator: List[(Operator, TUnary)])(implic
       x._1 match {
         case t: NumericOp => {
           if (lhsType.isSubType(Some(numericOfType)) && rhsType.isSubType(Some(numericOfType)))
-            opList(Some(rhsType.intersection(of.get)), xs)
+            opList(Some(rhsType.intersection(lhsType)), xs)
           else
             throw new TypeMismatch(numericOfType.toString, rhsType.toString)(x._1.pos, scope)
         }
@@ -400,7 +404,7 @@ final case class TExpr(unary: TUnary, operator: List[(Operator, TUnary)])(implic
 
         case t: NumericBooleanOp => {
           if (lhsType.isSubType(Some(primTOfType)) && rhsType.isSubType(Some(primTOfType)))
-            opList(Some(rhsType), xs)
+            opList(Some(boolOfType), xs)
           else
             throw new TypeMismatch(primTOfType.toString, rhsType.toString)(x._1.pos, scope)
         }
@@ -481,16 +485,7 @@ final case class TUnaryLambda(un: List[UnaryOp], lambda: TLambda)(implicit overr
 }
 
 final case class TCommand(first: TFirstCommand, second: Option[TSecondCommand])(implicit val scope: Scope) extends Typer {
-  def extractOfType: Option[TOfType] = {
-    if (second.isEmpty) {
-      first.extractOfType
-    }
-    else {
-      val fst = first.extractOfType
-
-      second.get.extractOfType(fst)
-    }
-  }
+  def extractOfType: Option[TOfType] = first.extractOfType
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = s"${first.codegen}${if (second.isDefined) second.get.codegen else ""}"
 
@@ -557,8 +552,15 @@ final case class TPonyID(i: ID)(implicit val scope: Scope) extends TAtom with Ty
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = i
 }
 
-final case class TPonyTypeId(t: TypeId)(implicit val scope: Scope, implicit val checker: LowerTypeChecker) extends TAtom with Typer {
-  override def extractOfType = Some(new TOfType(Set(new TTypeClass(scope.search(t, checker)(this.pos)))))
+final case class TPonyTypeId(t: TypeId)(implicit val scope: Scope) extends TAtom with Typer {
+  override def extractOfType = {
+    val search = scope.search(t)(this.pos)
+
+    search match {
+      case t: TPrimitive => Some(new TOfType(Set(t)))
+      case t: TModuleMember => Some(new TOfType(Set(new TTypeClass(t))))
+    }
+  }
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = t
 }
@@ -574,7 +576,7 @@ final case class TSecondCommandArgs(args: TArgs)(implicit override val scope: Sc
 }
 
 final case class TCommandCall(id: TBodyContent, formalArgs: TFormalArgs, args: TArgs)(implicit override val scope: Scope) extends TSecondCommand with Typer {
-  override def extractOfType(fst: Option[TOfType]): Option[TOfType] = ???
+  override def extractOfType(fst: Option[TOfType]): Option[TOfType] = id.ofType
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
     s"${id.scope.currentClass.name}_${id.name}(this, ${ArgsHelper.codeGen(args)})"

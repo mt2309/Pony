@@ -45,11 +45,8 @@ object Loader {
   }
 
   private def createPath(currentPath: String, relativePath: String): String = {
-    if (relativePath.length == 0) return relativePath
+    if (relativePath.length == 0) return currentPath
 
-    relativePath.charAt(0) match {
-      case '/' => relativePath
-      case _ => currentPath + "/" + relativePath
-    }
+    new File(new File(currentPath).getParentFile, relativePath.replace("\"","")).getAbsolutePath
   }
 }

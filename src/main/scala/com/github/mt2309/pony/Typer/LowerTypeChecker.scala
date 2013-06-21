@@ -110,7 +110,7 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
   private def checkTypeClass(typeclass: TypeClass)(implicit scope: Scope): TTypeElement = {
 
     val res = typeCache.lookupTypeclass(typeclass).getOrElse {
-      scope.search(typeclass, this) match {
+      scope.search(typeclass) match {
         case e: EmptyType => e
         case t: TModuleMember => new TTypeClass(t, checkMode(typeclass.mode), checkFormal(typeclass.formalArgs)).setPos(typeclass.pos)
       }
@@ -199,7 +199,7 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
     case PonyDouble(d: Double) => new TPonyDouble(d)
     case PonyString(s: String) => new TPonyString(s)
     case PonyID(i: ID) => new TPonyID(i)
-    case PonyTypeId(t: TypeId) => new TPonyTypeId(t)(scope, this)
+    case PonyTypeId(t: TypeId) => new TPonyTypeId(t)
   }
 
   private def checkSecondCommand(snd: SecondCommand, ofType: Option[TOfType])(implicit scope: Scope): TSecondCommand = snd match {
@@ -249,9 +249,9 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
     case Conditional(condList, elseBlock) => {
       new TConditional(condList.map(t => checkBooleanExpr(t._1) -> checkBlock(t._2)), elseBlock.map(checkBlock)).setPos(b.pos) -> scope
     }
-    case Assignment(lValues, optExpr) => {
+    case Assignment(lValues, expr) => {
       val lV = checkList(lValues, checkLValue)
-      new TAssignment(lV._1, optExpr.map(checkExpression(_)(lV._2))).setPos(b.pos) -> lV._2
+      new TAssignment(lV._1, expr.map(checkExpression(_)(lV._2))).setPos(b.pos) -> lV._2
     }
   }
 
@@ -293,7 +293,7 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
     if (ex.extractOfType == Some(boolOfType))
       ex
     else
-      throw new TypeMismatch(ex.extractOfType.toString, boolOfType.toString)(expr.pos, scope)
+      throw new TypeMismatch(boolOfType.toString, ex.extractOfType.toString)(expr.pos, scope)
   }
 
   private def checkCaseBlock(c: CaseBlock)(implicit scope: Scope): TCaseBlock = {
@@ -331,15 +331,32 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
 
   private def checkFormal(formal: FormalArgs)(implicit scope: Scope): TFormalArgs = formal.map(checkTypeClass)
 
-  private def checkTypeBody(typeBody: TypeBody)(implicit scope: Scope): TTypeBody = new TTypeBody(checkBodyContents(typeBody.body))
+  private def checkTypeBody(typeBody: TypeBody)(implicit scope: Scope): TTypeBody = {
+    val fields = checkBodyContents(typeBody.body.filter(t => t._2.isInstanceOf[Field] || t._2.isInstanceOf[Delegate]))
+
+    val fieldScope: Scope = fields.values.map(_.scope).fold(scope)(_.mergeScope(_))
+
+    val methods = checkBodyContents(typeBody.body.filterNot(t => t._2.isInstanceOf[Field] || t._2.isInstanceOf[Delegate]))(fieldScope)
+    new TTypeBody(fields ++ methods)
+  }
 
   private def checkBodyContents(bd: Map[ID, BodyContent])(implicit scope: Scope): Map[ID, TBodyContent] = {
     if (bd.isEmpty) {
       Map.empty
     }
     else {
-      val tup = checkBodyContent(bd.head._2)
-      Map(bd.head._1 -> tup._1) ++ checkBodyContents(bd.tail)(tup._2)
+      try {
+        val tup = checkBodyContent(bd.head._2)
+        Map(tup._1.name -> tup._1) ++ checkBodyContents(bd.tail)(tup._2)
+      } catch {
+        case v: VariableNotFoundException => {
+          if (bd.tail.size == 0) throw v
+          else {
+            val tup = checkBodyContent(bd.tail.head._2)
+            Map(tup._1.name -> tup._1) ++ checkBodyContents(bd.tail.tail + bd.head)(tup._2)
+          }
+        }
+      }
     }
   }
 
@@ -368,7 +385,10 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
         val con = checkContents(contents)
         val res = checkParams(results)(con._2)
         val sc = if (res.isEmpty) con._2 else res.last.scope
-        new TFunction(con._1, res, throws, block.map(checkBlock(_)(sc))) -> scope
+        val fun = new TFunction(con._1, res, throws, block.map(checkBlock(_)(sc)))
+        val newScope = scope.updateScope(contents.id, fun)
+
+        fun -> newScope
       }
       case Message(contents, block) => {
         val con = checkContents(contents)
