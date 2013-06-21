@@ -1,0 +1,3 @@
+[submodule "src/main/c/runtime"]
+	path = src/main/c/runtime
+	url = git@github.com:sylvanc/ponyrt.git
