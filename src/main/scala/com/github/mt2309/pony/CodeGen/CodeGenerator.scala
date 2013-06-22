@@ -1,15 +1,22 @@
 package com.github.mt2309.pony.CodeGen
 
-import com.github.mt2309.pony.Common.{TypeId,TabbedBuilder}
+import com.github.mt2309.pony.Common.{TypeId,ID,TabbedBuilder}
 import com.github.mt2309.pony.CompilationUnit.CompilationUnit
 import com.github.mt2309.pony.Typer._
-import java.io.{PrintWriter, File}
+
+import java.io.PrintWriter
 
 /**
  * User: mthorpe
  * Date: 29/05/2013
  * Time: 16:43
  */
+
+final case class CodeGenContext(currentClazz: ConcreteClass, workingID: ID, functionName: Option[ID]) {
+  def name: TypeId = currentClazz.name
+  def variables: Map[ID, Option[TOfType]] = currentClazz.variables
+}
+
 final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: String) {
 
   val modules: IndexedSeq[TypedModule] = units.map(_.typeIt).flatten
@@ -43,15 +50,16 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
     for (clazz <- classes) {
       clazz._2 match {
         case conc: ConcreteClass => {
+          val context = new CodeGenContext(conc, "this", None)
           headerBuilder.appendln(s"pony_clazz * ${clazz._1}_construct(void);")(0)
           headerBuilder.appendln(s"static_clazz * static_${clazz._1} = NULL;")(0)
           headerBuilder.appendln(s"static_clazz * create_static_${clazz._1}(void);")(0)
           sourceBuilder.append(conc.initialiseStatic(1))
-          sourceBuilder.append(conc.codegen(1, conc))
+          sourceBuilder.append(conc.codegen(1, context))
 
           for (body <- conc.methods) {
             headerBuilder.appendln(body._2.header(conc))(0)
-            sourceBuilder.append(body._2.codegen(1, conc))
+            sourceBuilder.append(body._2.codegen(1, context.copy(functionName = Some(body._1))))
           }
         }
         case _ =>

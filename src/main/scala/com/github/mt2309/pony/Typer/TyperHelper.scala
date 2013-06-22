@@ -2,6 +2,7 @@ package com.github.mt2309.pony.Typer
 
 import com.github.mt2309.pony.Common._
 import annotation.tailrec
+import com.github.mt2309.pony.CodeGen.CodeGenContext
 
 /**
  * User: mthorpe
@@ -9,6 +10,8 @@ import annotation.tailrec
  * Time: 03:38
  */
 object TyperHelper {
+
+  def extractFrom(opt: Option[TOfType]): String = "->" ++ structName(opt)
 
   def typeToClass(opt: Option[TOfType]): String = opt match {
     case Some(x) => {
@@ -61,7 +64,7 @@ object TyperHelper {
   }
 
 
-  def typeToConstructor(opt: Option[TOfType])(implicit clazz: ConcreteClass): String = opt match {
+  def typeToConstructor(opt: Option[TOfType])(implicit context: CodeGenContext): String = opt match {
     case Some(x) => {
       if (x.isPrimitive) {
         x.maximalType.defaultConstructor
@@ -70,7 +73,7 @@ object TyperHelper {
         "NULL"
       }
       else {
-        x.codegen(0, clazz)
+        x.codegen(0, context)
       }
     }
     case None => "NULL"
@@ -116,13 +119,12 @@ object ArgsHelper {
     b.mkString
   }
 
-  def codeGen(args: TArgs)(implicit clazz: ConcreteClass): String = {
+  def codeGen(args: TArgs)(implicit context: CodeGenContext): String = {
     val b = new StringBuilder
 
     for (arg <- args) {
-      b.append(arg.codegen(0, clazz) ++ ",")
+      b.append(arg.codegen(0, context) ++ ",")
     }
-
 
     b.take(b.length - 2).mkString
   }
