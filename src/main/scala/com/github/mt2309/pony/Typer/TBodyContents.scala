@@ -121,7 +121,7 @@ final case class TFunction(contents: TMethodContent, results: TParams, throws: B
     val b = new StringBuilder(s"variable **\n${currentClazz.name}_${contents.id}(pony_clazz* this, variable** args)\n{\n")
 
     for (param <- contents.combinedArgs.args.zipWithIndex) {
-      b.appendln(s"${TyperHelper.typeToClass(param._1.ofType)} ${param._1.name} = args[${param._2}];")
+      b.appendln(s"${TyperHelper.typeToClass(param._1.ofType)} ${param._1.name} = args[${param._2}]->${TyperHelper.structName(param._1.ofType)};")
     }
     for (result <- results) {
       b.appendln(s"${TyperHelper.typeToClass(result.ofType)} ${result.name} = ${TyperHelper.typeToConstructor(result.ofType)};")
@@ -166,7 +166,7 @@ final case class TMessage(contents: TMethodContent, block: Option[TBlock])(impli
     val b = new StringBuilder(s"variable **\n${currentClazz.name}_${contents.id}(pony_clazz* this, variable** args)\n{\n")
 
     for (param <- contents.combinedArgs.args.zipWithIndex) {
-      b.appendln(s"${TyperHelper.typeToClass(param._1.ofType)} ${param._1.name} = args[${param._2}];")
+      b.appendln(s"${TyperHelper.typeToClass(param._1.ofType)} ${param._1.name} = args[${param._2}]->${TyperHelper.structName(param._1.ofType)};")
     }
     for (variable <- currentClazz.variables) {
       b.appendln(s"${TyperHelper.typeToClass(variable._2)} ${variable._1} = lookup_value(this, ${variable._1.hashCode.abs})->${TyperHelper.structName(variable._2)};")

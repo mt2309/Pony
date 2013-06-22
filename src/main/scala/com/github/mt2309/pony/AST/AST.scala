@@ -88,6 +88,7 @@ final case class Expr(unary: Unary, operator: List[(Operator, Unary)]) extends A
 sealed trait BlockContent extends AST
 
 object Return extends BlockContent with AST
+object Native extends BlockContent with AST
 object Throw extends BlockContent with AST
 object Break extends BlockContent with AST
 object Continue extends BlockContent with AST

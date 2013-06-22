@@ -176,7 +176,10 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   private def blockList: Parser[List[BlockContent]] = (forLoop |block | conditional |  whileLoop | doLoop | matchParser | blockLiterals | assignment).*
 
   private def blockLiterals: Parser[BlockContent] = positioned {
-    returnLiteral | breakLiteral | continueLiteral | throwLiteral
+    returnLiteral | breakLiteral | continueLiteral | throwLiteral | nativeLiteral
+  }
+  private def nativeLiteral: Parser[BlockContent] = positioned {
+    "native" ^^ {s => Native}
   }
   private def returnLiteral: Parser[BlockContent] = positioned {
     "return" ^^ {s => Return}

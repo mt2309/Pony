@@ -15,7 +15,7 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
   val modules: IndexedSeq[TypedModule] = units.map(_.typeIt).flatten
 
   def codeGen(): Unit = {
-    val classes: IndexedSeq[(TypeId, TModuleMember, Int)] = (modules.map(_.classes).flatten ++ tPrimitiveTypes.map(t => t.typename -> t)).zipWithIndex.map(t => (t._1._1, t._1._2, t._2))
+    val classes: IndexedSeq[(TypeId, TModuleMember, Int)] = (modules.map(_.classes).flatten ++ tPrimitiveTypes.map(t => t.name -> t)).zipWithIndex.map(t => (t._1._1, t._1._2, t._2))
 
     val intArraySize = classes.size / 64 + 1
 

@@ -112,6 +112,7 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
     val res = typeCache.lookupTypeclass(typeclass).getOrElse {
       scope.search(typeclass) match {
         case e: EmptyType => e
+        case e: TPrimitive => e
         case t: TModuleMember => new TTypeClass(t, checkMode(typeclass.mode), checkFormal(typeclass.formalArgs)).setPos(typeclass.pos)
       }
     }
@@ -163,7 +164,7 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
     val ex = checkExpression(expr)
 
     // TODO: handle sub-typing relationship.
-    if (ex.extractOfType.getOrElse(throw new AssignmentException("Assigning to this")(expr.pos, scope)).isSubType(ofType))
+    if (ex.ofType.getOrElse(throw new AssignmentException("Assigning to this")(expr.pos, scope)).isSubType(ofType))
       ex
     else
       throw new AssignmentException(s"Type error, type from assign does not match lvalue type")(expr.pos, scope)
@@ -228,6 +229,7 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
   }
 
   private def checkBlockContent(b: BlockContent)(implicit scope: Scope): (TBlockContent, Scope) = b match {
+    case Native => new TNative -> scope
     case Return => new TReturn -> scope
     case Throw => new TThrow -> scope
     case Break => new TBreak -> scope // TODO: Should we check if we're in a loop here
@@ -290,10 +292,10 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
 
   def checkBooleanExpr(expr: Expr)(implicit scope: Scope): TExpr = {
     val ex = checkExpression(expr)
-    if (ex.extractOfType == Some(boolOfType))
+    if (ex.ofType == Some(boolOfType))
       ex
     else
-      throw new TypeMismatch(boolOfType.toString, ex.extractOfType.toString)(expr.pos, scope)
+      throw new TypeMismatch(boolOfType.toString, ex.ofType.toString)(expr.pos, scope)
   }
 
   private def checkCaseBlock(c: CaseBlock)(implicit scope: Scope): TCaseBlock = {

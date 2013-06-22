@@ -2,7 +2,7 @@ package com.github.mt2309.pony.Typer
 
 import com.github.mt2309.pony.Common._
 import com.github.mt2309.pony.AST._
-import util.parsing.input.{NoPosition, Positional}
+import util.parsing.input.Positional
 import annotation.tailrec
 
 /**
@@ -23,13 +23,14 @@ final case class TypedModule(imports:CompilationUnits, classes: Map[TypeId, TMod
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
-sealed abstract class TModuleMember(val name: TypeId)(implicit val scope: Scope) extends Typer {
+sealed abstract class TModuleMember(implicit val scope: Scope) extends Typer {
+  def name: TypeId
   def methods: Map[ID, TBodyContent]
   def isSubType(that: TTypeElement): Boolean
   def variables: Map[ID, Option[TOfType]]
 }
 
-final case class EmptyType(override val name: TypeId)(implicit override val scope: Scope) extends TModuleMember(name) with TTypeElement {
+final case class EmptyType(override val name: TypeId)(implicit override val scope: Scope) extends TModuleMember with TTypeElement {
   override def isSubType(that: TTypeElement) = this == that
 
   override def methods = Map.empty
@@ -39,17 +40,19 @@ final case class EmptyType(override val name: TypeId)(implicit override val scop
   override val defaultConstructor = "NULL;\n"
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
+
+  override def toString = s"EmptyType(name = $name)"
 }
 
-final case class TPrimitive(typename: TypeId, cTypename: String,  override val defaultConstructor: String)
-                           (implicit override val scope: Scope) extends TModuleMember(typename) with TTypeElement {
+final case class TPrimitive(name: TypeId, cTypename: String,  override val defaultConstructor: String)
+                           (implicit override val scope: Scope) extends TModuleMember with TTypeElement {
 
   override def isSubType(that: TTypeElement): Boolean = that match {
-    case TPrimitive(pName, _ , _) => pName == typename
+    case TPrimitive(pName, _ , _) => pName == name
     case _ => false
   }
 
-  def creation: String = s"create_${typename.toLowerCase}_var"
+  def creation: String = s"create_${name.toLowerCase}_var"
 
   override def variables = Map.empty
 
@@ -58,13 +61,27 @@ final case class TPrimitive(typename: TypeId, cTypename: String,  override val d
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 
   override def equals(that: Any): Boolean = that match {
-    case t:TPrimitive => this.typename == t.typename
+    case t:TPrimitive => this.name == t.name
     case _ => false
   }
+
+  override def toString = s"Primitive(name = $name)"
 }
 
-final case class TDeclare(typename: TypeId, is: TIs, declareMap: TDeclareMap)(implicit override val scope: Scope) extends TModuleMember(typename) {
+final case class TDeclare(name: TypeId, is: TIs, declareMap: TDeclareMap)(implicit override val scope: Scope) extends TModuleMember {
 
+  override def methods = is.methods
+
+  override def isSubType(that: TTypeElement): Boolean = ???
+
+  override def variables = Map.empty
+
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
+
+  override def toString = s"TDeclare(name = $name, is = $is, map = $declareMap)"
+}
+
+final case class TType(name: TypeId, ofType: TOfType, is: TIs)(implicit override val scope: Scope) extends TModuleMember {
   override def methods = is.methods
 
   override def isSubType(that: TTypeElement): Boolean = ???
@@ -74,17 +91,12 @@ final case class TDeclare(typename: TypeId, is: TIs, declareMap: TDeclareMap)(im
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 
-final case class TType(n: TypeId, ofType: TOfType, is: TIs)(implicit override val scope: Scope) extends TModuleMember(n) {
-  override def methods = is.methods
+abstract class PonyClass(implicit override val scope: Scope) extends TModuleMember {
 
-  override def isSubType(that: TTypeElement): Boolean = ???
-
-  override def variables = Map.empty
-
-  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
-}
-
-abstract class PonyClass(override val name: TypeId, val formalArgs: FormalParams, val is:TIs, val typeBody: TTypeBody)(implicit override val scope: Scope) extends TModuleMember(name) {
+  def name: TypeId
+  def formalArgs: FormalParams
+  def is: TIs
+  def typeBody: TTypeBody
 
   override def isSubType(that: TTypeElement): Boolean = ???
 
@@ -94,9 +106,12 @@ abstract class PonyClass(override val name: TypeId, val formalArgs: FormalParams
   }
 }
 
-abstract class ConcreteClass
-(override val name: TypeId, override val formalArgs: FormalParams, override val is:TIs, override val typeBody: TTypeBody)(implicit override val scope: Scope) extends PonyClass(name, formalArgs, is, typeBody)
+abstract class ConcreteClass(implicit override val scope: Scope) extends PonyClass
 {
+  def name: TypeId
+  def formalArgs: FormalParams
+  def is: TIs
+  def typeBody: TTypeBody
 
   def initialiseStatic(implicit indent: Int): String = {
     val b = new StringBuilder(s"static_clazz * create_static_$name(void)\n{\n")
@@ -158,7 +173,7 @@ abstract class ConcreteClass
   }
 
   override def variables = {
-    val fields: Map[ID, Option[TOfType]] =    typeBody.body.filter(_._2.isInstanceOf[TField]).map(t =>    t._1 -> t._2.asInstanceOf[TField].ofType)
+    val fields: Map[ID,    Option[TOfType]] = typeBody.body.filter(_._2.isInstanceOf[TField]).map(t =>    t._1 -> t._2.asInstanceOf[TField].ofType)
     val delegates: Map[ID, Option[TOfType]] = typeBody.body.filter(_._2.isInstanceOf[TDelegate]).map(t => t._1 -> t._2.asInstanceOf[TDelegate].ofType)
 
 
@@ -166,11 +181,11 @@ abstract class ConcreteClass
   }
 }
 
-final case class TActor(n: TypeId, f: FormalParams, i:TIs, t: TTypeBody)(implicit override val scope: Scope)   extends ConcreteClass(n,f,i,t)
-final case class TObject(n: TypeId, f: FormalParams, i:TIs, t: TTypeBody)(implicit override val scope: Scope)  extends ConcreteClass(n,f,i,t)
-final case class TTrait(n: TypeId, f: FormalParams, i:TIs, t: TTypeBody)(implicit override val scope: Scope)   extends PonyClass(n,f,i,t) {
+final case class TActor (name: TypeId, formalArgs: FormalParams, is:TIs, typeBody: TTypeBody)(implicit override val scope: Scope) extends ConcreteClass
+final case class TObject(name: TypeId, formalArgs: FormalParams, is:TIs, typeBody: TTypeBody)(implicit override val scope: Scope) extends ConcreteClass
+final case class TTrait (name: TypeId, formalArgs: FormalParams, is:TIs, typeBody: TTypeBody)(implicit override val scope: Scope) extends PonyClass {
   override def variables = Map.empty
-  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = throw new UnsupportedOperationException
 }
 
 final case class TParam(name: ID, ofType: Option[TOfType])(implicit val scope: Scope)
@@ -179,6 +194,7 @@ final case class TCombinedArgs(formalArgs: FormalParams, args: TParams)(implicit
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 final case class TArg(expr: Option[TExpr], ofType: Option[TOfType], assign: Option[TExpr])(implicit val scope: Scope) extends Typer {
+
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = expr.map(_.codegen).getOrElse("") ++ assign.map(_.codegen).getOrElse("")
 }
 
@@ -320,9 +336,6 @@ final case class TOfType(typeList: Set[TTypeElement])(implicit val scope: Scope)
 
   def isSubType(that: Option[TOfType]): Boolean = {
 
-    println(s"this = $this")
-    println(s"that = $that")
-
     if (that.isDefined) {
       (for (t <- this.typeList) yield {
         (for (tt <- that.get.typeList) yield tt == t || t.isSubType(tt)).reduce(_ || _)
@@ -343,7 +356,16 @@ final case class TOfType(typeList: Set[TTypeElement])(implicit val scope: Scope)
 
   def size = typeList.size
 
-  def intersection(that: TOfType): TOfType = new TOfType(typeList.intersect(that.typeList))
+  def intersection(that: TOfType): TOfType = {
+    val list = typeList.intersect(that.typeList)
+
+    if (list.isEmpty) {
+      doubleOfType
+    }
+    else {
+      new TOfType(list)
+    }
+  }
 
 }
 
@@ -354,10 +376,21 @@ final case class TTypeBody(body: Map[ID,TBodyContent])(implicit val scope: Scope
 
 
 final case class TMethodContent(mode: TMode, id:ID, combinedArgs: TCombinedArgs)(implicit val scope: Scope) extends Typer {
-  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = throw new UnsupportedOperationException
 }
 
 final case class TExpr(unary: TUnary, operator: List[(Operator, TUnary)])(implicit val scope: Scope) extends Typer {
+
+  def tail(implicit indent: Int, currentClazz: ConcreteClass): String = unary.tail
+
+  def isSimple: Boolean = {
+    if (operator.isEmpty) {
+      unary.isSimple
+    }
+    else {
+      true
+    }
+  }
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
     val u = unary.codegen
@@ -374,7 +407,7 @@ final case class TExpr(unary: TUnary, operator: List[(Operator, TUnary)])(implic
     }
   }
 
-  def extractOfType(implicit scope: Scope): Option[TOfType] = {
+  def ofType(implicit scope: Scope): Option[TOfType] = {
     val unaryOfType = unary.extractOfType
     if (operator.isEmpty)
       unaryOfType
@@ -424,7 +457,13 @@ abstract class TCaseSubBlock(implicit val scope: Scope) extends Typer {
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
 }
 final case class TCaseIf(expr: TExpr)(implicit override val scope: Scope) extends TCaseSubBlock {
-  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
+    val b = new StringBuilder
+
+    b.appendln(s"if (${expr.codegen})")
+
+    b.mkString
+  }
 }
 final case class TCaseVarList(varList: List[TCaseVar])(implicit override val scope: Scope) extends TCaseSubBlock {
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
@@ -459,97 +498,191 @@ final case class TLValueCommand(command: TCommand)(implicit override val scope: 
   override def ofType: Option[TOfType] = command.extractOfType
 }
 
-sealed abstract class TUnary(unaryOps: List[UnaryOp])(implicit val scope: Scope) extends Typer {
+sealed abstract class TUnary(implicit val scope: Scope) extends Typer {
   def extractOfType: Option[TOfType]
+  def isSimple: Boolean
+  def tail(implicit indent: Int, currentClazz: ConcreteClass): String
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String
+
+  def unaryOps: List[UnaryOp]
 }
 
-final case class TUnaryCommand(un: List[UnaryOp], command: TCommand)(implicit override val scope: Scope) extends TUnary(un) {
+final case class TUnaryCommand(unaryOps: List[UnaryOp], command: TCommand)(implicit override val scope: Scope) extends TUnary {
   override def extractOfType = command.extractOfType
+
+  override def isSimple: Boolean = command.isSimple
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
     val b = new StringBuilder
 
-    for (op <- un)
+    for (op <- unaryOps)
       b.append(op.codeGen)
 
-    b.append(" " ++ command.codegen)
+    b.append(command.codegen)
 
     b.mkString
   }
+
+  override def tail(implicit indent: Int, currentClazz: ConcreteClass): String = command.tail
 }
 
-final case class TUnaryLambda(un: List[UnaryOp], lambda: TLambda)(implicit override val scope: Scope) extends TUnary(un) {
+final case class TUnaryLambda(unaryOps: List[UnaryOp], lambda: TLambda)(implicit override val scope: Scope) extends TUnary {
   override def extractOfType = Some(new TOfType(Set(lambda)))
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
+
+  override def tail(implicit indent: Int, currentClazz: ConcreteClass): String = throw new UnsupportedOperationException
+
+  override def isSimple: Boolean = false
 }
 
 final case class TCommand(first: TFirstCommand, second: Option[TSecondCommand])(implicit val scope: Scope) extends Typer {
   def extractOfType: Option[TOfType] = first.extractOfType
 
-  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = s"${first.codegen}${if (second.isDefined) second.get.codegen else ""}"
+  def isSimple: Boolean = {
+    if (second.isDefined) {
+      println(second)
+      false
+    } else {
+      first.isSimple
+    }
+  }
+
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
+    val b = new StringBuilder
+
+    b.append(first.codegen)
+
+    second.map(m => b.append("(" ++ m.codegen ++ ")"))
+
+    b.mkString
+  }
 
   def constructor: String = ""
+
+  def tail(implicit indent: Int, currentClazz: ConcreteClass) = first.tail
+
+  override def toString = s"TCommand(first = $first, second = $second)"
 }
 
 sealed abstract class TFirstCommand extends Typer {
   def extractOfType: Option[TOfType]
+  def tail(implicit indent: Int, currentClazz: ConcreteClass): String
+  def isSimple: Boolean
 }
 
 final case class TCommandExpr(expr: TExpr)(implicit val scope: Scope) extends TFirstCommand with Typer {
-  override def extractOfType: Option[TOfType] = expr.extractOfType
+  override def extractOfType: Option[TOfType] = expr.ofType
 
-  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = "(" ++ expr.codegen ++ ")"
+
+  override def tail(implicit indent: Int, currentClazz: ConcreteClass): String = expr.tail
+
+  override def isSimple: Boolean = false
+
+  override def toString = s"TCommandExpr(expr = $expr)"
 }
 
 final case class TCommandArgs(args: List[TArg])(implicit val scope: Scope) extends TFirstCommand with Typer {
   override def extractOfType: Option[TOfType] = ???
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
+
+  override def tail(implicit indent: Int, currentClazz: ConcreteClass): String = args.head.expr.get.tail
+
+  override def isSimple: Boolean = false
+
+  override def toString = s"TCommandArgs(args = $args)"
 }
 
-sealed abstract class TAtom extends TFirstCommand with Typer
+sealed abstract class TAtom extends TFirstCommand with Typer {
+  override def tail(implicit indent: Int, currentClazz: ConcreteClass): String = codegen
+  override def isSimple: Boolean
+}
 
 final class TThis(implicit val scope: Scope) extends TAtom {
   override def extractOfType = None
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = "this"
+
+  override def isSimple: Boolean = false
+
+  override def toString = "TThis"
 }
 
-final class  TTrue(implicit val scope: Scope) extends TAtom {
+final class TTrue(implicit val scope: Scope) extends TAtom {
   override def extractOfType = Some(boolOfType)
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = "true"
+
+  override def isSimple: Boolean = true
+
+  override def toString = "TTrue"
 }
 
 final class  TFalse(implicit val scope: Scope) extends TAtom {
   override def extractOfType = Some(boolOfType)
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = "false"
+
+  override def isSimple: Boolean = true
+
+  override def toString = "TFalse"
 }
 
 final case class TPonyInt(i: Int)(implicit val scope: Scope) extends TAtom with Typer {
   override def extractOfType = Some(intOfType)
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = i.toString
+
+  override def isSimple: Boolean = true
+
+  override def toString = s"Int($i)"
 }
 
 final case class TPonyDouble(d: Double)(implicit val scope: Scope) extends TAtom with Typer {
   override def extractOfType = Some(doubleOfType)
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = d.toString
+
+  override def isSimple: Boolean = true
+
+  override def toString = s"Double($d)"
 }
 
 final case class TPonyString(s: String)(implicit val scope: Scope) extends TAtom with Typer {
   override def extractOfType = Some(stringOfType)
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = "\"" ++ s ++ "\""
+
+  override def isSimple: Boolean = true
+
+  override def toString = s"String($s)"
 }
 
 final case class TPonyID(i: ID)(implicit val scope: Scope) extends TAtom with Typer {
   override def extractOfType = scope.searchID(i)(this.pos)
 
-  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = i
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
+    scope.findID(i) match {
+      case Some(found) => found match {
+        case v:Var => i
+        case m:Meth => s"${currentClazz.name}_$i"
+      }
+      case None => ???
+    }
+  }
+
+  override def isSimple: Boolean = {
+    scope.findID(i) match {
+      case Some(found) => found match {
+        case v:Var => true
+        case m:Meth => false
+      }
+      case None => ???
+    }
+  }
+
 }
 
 final case class TPonyTypeId(t: TypeId)(implicit val scope: Scope) extends TAtom with Typer {
@@ -562,23 +695,64 @@ final case class TPonyTypeId(t: TypeId)(implicit val scope: Scope) extends TAtom
     }
   }
 
-  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = t
+  override def isSimple: Boolean = false
+
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ""
 }
 
 sealed abstract class TSecondCommand(implicit val scope: Scope) extends Typer {
   def extractOfType(fst: Option[TOfType]): Option[TOfType]
+  def tail(implicit indent: Int, currentClazz: ConcreteClass): String
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String
 }
 
 final case class TSecondCommandArgs(args: TArgs)(implicit override val scope: Scope) extends TSecondCommand with Typer {
   override def extractOfType(fst: Option[TOfType]): Option[TOfType] = ???
 
-  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
+    val b = new StringBuilder(s"this, create_args(${args.length}")
+
+    if (args.isEmpty) {
+      b.append(", NULL")
+    }
+    else {
+      for (arg <- args) {
+        b.append(s", ${TyperHelper.createVariable(arg.ofType)}(${arg.expr.get.codegen})")
+      }
+    }
+
+    b.append(")")
+
+    b.mkString
+  }
+
+  def tail(implicit indent: Int, currentClazz: ConcreteClass) = args.head.expr.get.codegen
+
+  override def toString = s"TSecondCommandArgs(args = $args)"
 }
 
 final case class TCommandCall(id: TBodyContent, formalArgs: TFormalArgs, args: TArgs)(implicit override val scope: Scope) extends TSecondCommand with Typer {
   override def extractOfType(fst: Option[TOfType]): Option[TOfType] = id.ofType
 
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
-    s"${id.scope.currentClass.name}_${id.name}(this, ${ArgsHelper.codeGen(args)})"
+    val b = new StringBuilder(s"${id.scope.currentClass.name}_${id.name}(this, create_args(${args.length}")
+
+    if (args.isEmpty) {
+      b.append(", NULL")
+    }
+    else {
+      for (arg <- args) {
+        val e = arg.expr.get
+        b.append(s", ${TyperHelper.createVariable(e.ofType)}(${e.codegen})")
+      }
+    }
+
+    b.append(")")
+
+    b.mkString
   }
+
+  override def toString = s"TCommandCall(id = $id, formalArgs = $formalArgs, args = $args)"
+
+  def tail(implicit indent: Int, currentClazz: ConcreteClass) = throw new UnsupportedOperationException
 }

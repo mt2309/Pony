@@ -15,35 +15,53 @@ final class TReturn(implicit val scope: Scope) extends TBlockContent {
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
     " "*2*indent ++ "goto return_label;\n"
   }
+
+  override def toString = "TReturn"
+}
+
+final class TNative(implicit val scope: Scope) extends TBlockContent {
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
+
+  override def toString = "TNative"
 }
 
 final class TThrow(implicit val scope: Scope) extends TBlockContent {
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = " "*2*indent ++ "goto cleanup;\n"
+
+  override def toString = "TThrow"
 }
 
 final class TBreak(implicit val scope: Scope) extends TBlockContent {
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = " "*2*indent ++ "break;\n"
+
+  override def toString = "TBreak"
 }
 
 final class TContinue(implicit val scope: Scope) extends TBlockContent {
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = " "*2*indent ++ "continue;\n"
+
+  override def toString = "TContinue"
 }
 
 final case class TVarDec(id: ID, ofType: Option[TOfType], expr: Option[TExpr])(implicit val scope: Scope) extends TBlockContent {
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
     val b = new StringBuilder
 
-    b.append(" "*2*indent ++ s"pony_clazz ** $id ")
+    val e = expr.get
 
-    expr match {
-      case Some(x) => b.append(s"= ${x.codegen};\n")
-      case None =>    b.append(s"= ${ofType.get.codegen};\n")
+    if (e.isSimple) {
+      b.appendln(s"${TyperHelper.typeToClass(ofType)} $id = (${e.codegen});")
+    }
+    else {
+      b.appendln(s"${TyperHelper.typeToClass(ofType)} $id = (${e.codegen})->${TyperHelper.structName(ofType)};")
     }
 
     b.mkString
   }
 
-  def constructor(implicit indent: Int, currentClazz: ConcreteClass): String = ofType.get.codegen
+  def constructor(implicit indent: Int, currentClazz: ConcreteClass): String = TyperHelper.typeToConstructor(ofType)
+
+  override def toString = s"TVarDec(id = $id, ofType = $ofType, expr = $expr"
 }
 
 final case class TMatch(list: List[(TExpr,TCaseBlock)])(implicit val scope: Scope) extends TBlockContent {
@@ -60,22 +78,35 @@ final case class TDoLoop(block: TBlock, whileExpr: TExpr)(implicit val scope: Sc
 
     b.mkString
   }
+
+  override def toString = s"DoLoop(doExpr = $whileExpr, block = $block)"
 }
 
 final case class TWhileLoop(whileExpr: TExpr, block: TBlock)(implicit val scope: Scope) extends TBlockContent {
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
     val b = new StringBuilder
-    b.append(s"while (${whileExpr.codegen})\n")
-    b.append(block.codegen)
-
-    b.append("\n")
+    b.appendln(s"while (${whileExpr.codegen})")
+    b.append(block.codegen(indent + 1, currentClazz))
 
     b.mkString
   }
+
+  override def toString = s"WhileLoop(whileExpr = $whileExpr, block = $block)"
 }
 
 final case class TForLoop(forVars: List[TForVar], inExpr: TExpr, block: TBlock)(implicit val scope: Scope) extends TBlockContent {
-  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = ???
+  override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
+    val b = new StringBuilder
+
+    val head = forVars.head
+
+    b.appendln(s"for (${TyperHelper.typeToClass(head.ofType)} ${head.id} = ${TyperHelper.typeToConstructor(head.ofType)}; ${head.id} == ${inExpr.tail}; ${head.id}++)")
+    b.append(block.codegen(indent + 1, currentClazz))
+
+    b.mkString
+  }
+
+  override def toString = s"TForLoop(forVars = $forVars, in = $inExpr, block = $block)"
 }
 
 final case class TConditional(conditionalList: List[(TExpr, TBlock)], elseBlock: Option[TBlock])(implicit val scope: Scope) extends TBlockContent {
@@ -91,17 +122,21 @@ final case class TConditional(conditionalList: List[(TExpr, TBlock)], elseBlock:
 
     builder.mkString
   }
+
+  override def toString = s"TConditional(conditionals = $conditionalList, elseBlock = $elseBlock)"
 }
 
 final case class TAssignment(lValues: List[TLValue], expr: Option[TExpr])(implicit val scope: Scope) extends TBlockContent {
   override def codegen(implicit indent: Int, currentClazz: ConcreteClass): String = {
     val b = new StringBuilder
 
-    for (e <- expr) {
+    if (expr.isDefined) {
 
-      b.appendln(s"${TyperHelper.typeToClass(e.extractOfType)} result_${e.hashCode.abs} = ${e.codegen};")
+      val e = expr.get
 
-      if (TyperHelper.isPrimitive(e.extractOfType) || TyperHelper.isSingleRes(e.extractOfType)) {
+      b.appendln(s"${TyperHelper.typeToClass(e.ofType)} result_${e.hashCode.abs} = ${e.codegen};")
+
+      if (TyperHelper.isPrimitive(e.ofType) || TyperHelper.isSingleRes(e.ofType)) {
         b.appendln(s"${lValues.head.codegen} = result_${e.hashCode.abs};")
       }
       else {
@@ -110,10 +145,16 @@ final case class TAssignment(lValues: List[TLValue], expr: Option[TExpr])(implic
         }
         b.append("")
       }
+    } else {
+      for (lVal <- lValues) {
+        b.append(lVal.codegen)
+      }
     }
 
     b.mkString
   }
+
+  override def toString = s"TAssignment(lvalues = $lValues, expr = $expr"
 }
 
 final case class TBlock(contents: List[TBlockContent] = List.empty, catchBlock: Option[TBlock] = None, alwaysBlock: Option[TBlock] = None)
@@ -129,7 +170,8 @@ final case class TBlock(contents: List[TBlockContent] = List.empty, catchBlock: 
 
     b.appendln("}")(indent - 1)
 
-
     b.mkString
   }
+
+  override def toString = s"TBlock(contents = $contents, catch = $catchBlock, always = $alwaysBlock)"
 }

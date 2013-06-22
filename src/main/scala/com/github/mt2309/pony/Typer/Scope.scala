@@ -12,6 +12,11 @@ import annotation.tailrec
  * Time: 21:36
  */
 
+sealed abstract class IDMap
+final class Var extends IDMap
+final class Meth extends IDMap
+
+
 final case class ClassData(currentClass: Option[ModuleMember] = None, isStatic: Boolean = false) {
   def inClass = currentClass.isDefined
   def name = currentClass.map(_.typeName).getOrElse("Outside class")
@@ -65,7 +70,7 @@ final case class Scope(typeScope: TypeScope = initialScope,
   }
 
   def search(tClass: TypeClass): TModuleMember = {
-    val p: Option[TModuleMember] = tPrimitiveTypes.find(_.typename == tClass.name)
+    val p: Option[TModuleMember] = tPrimitiveTypes.find(_.name == tClass.name)
     val i: Option[TModuleMember] = if (p.isDefined) p else imports.searchType(tClass)
     val t: Option[TModuleMember] = if (i.isDefined) i else typeScope.get(tClass.name)
 
@@ -153,6 +158,12 @@ final case class Scope(typeScope: TypeScope = initialScope,
       val scope = this.copy(filename = unTyped._1.fileName)
       checker.checkClass(unTyped._1, scope)
     }
+  }
+
+  def findID(i: ID): Option[IDMap] = {
+    if (varScope.contains(i)) Some(new Var)
+    else if (methScope.contains(i)) Some(new Meth)
+    else None
   }
 
   def searchID(i: ID)(implicit pos: Position): Option[TOfType] = {
