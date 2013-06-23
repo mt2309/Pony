@@ -11,7 +11,7 @@ actor Receiver {
 
   }
 
-  message receive(buff: Buffer[:imm]) {
+  message receive(buff: Buffer[:uniq]) {
     buff.append(4)
   }
 }
@@ -19,7 +19,7 @@ actor Receiver {
 actor Main {
   function main() {
     var x: Receiver = Receiver.construct()
-    var buff: Buffer[:imm] = Buffer.build(1,2,3)
+    var buff: Buffer[:uniq] = Buffer.build(1,2,3)
     x.receive(buff)
     buff.empty()
   }
