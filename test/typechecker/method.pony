@@ -6,7 +6,7 @@ object M {
 
 object M1 {
 
-  function main()->() {
+  function init()->() {
     var x: M = M
     x.method()
   }

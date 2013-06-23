@@ -9,13 +9,13 @@ actor Integrator {
     accumulator = acc
   }
 
-  function functionAt(x: Double)->(res: Double) {
+  static function functionAt(x: Double)->(res: Double) {
     var square: Double = x * x + 1
     res = 4d / (square)
 
   }
 
-  function trapeziumRule(h: Double, a: Double, b: Double)->(res: Double) {
+  static function trapeziumRule(h: Double, a: Double, b: Double)->(res: Double) {
     var at: Double = functionAt(a) + functionAt(b)
     res = (h * at)/ 2d
   }

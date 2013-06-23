@@ -1,10 +1,10 @@
 object Integer {
 
-  var int: Int = 0
+  var value: Int = 0
 
   function abs()->(y: Int) {
-    if (int < 0) {y = -int}
-    else {y = int}
+    if (value < 0) {y = -value}
+    else {y = value}
   }
 
 }
