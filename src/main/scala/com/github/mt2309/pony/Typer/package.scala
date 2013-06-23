@@ -49,6 +49,6 @@ package object Typer {
 
   val initialScope: TypeScope = primScope ++ ImplicitTraits.implicitTraits
 
-  type VariableScope = Map[ID, Option[TOfType]]
+  type VariableScope = Map[ID, Var]
   type MethScope = Map[ID, TBodyContent]
 }

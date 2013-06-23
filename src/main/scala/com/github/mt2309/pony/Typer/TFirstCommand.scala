@@ -13,6 +13,7 @@ sealed abstract class TFirstCommand extends Typer {
   def tail(implicit indent: Int, context: CodeGenContext): String
   override def codegen(implicit indent: Int, context: CodeGenContext): String
   def isSimple: Boolean
+  def removeUnique(scope: Scope): Scope
 }
 
 final case class TCommandExpr(expr: TExpr)(implicit val scope: Scope) extends TFirstCommand with Typer {
@@ -25,6 +26,8 @@ final case class TCommandExpr(expr: TExpr)(implicit val scope: Scope) extends TF
   override def isSimple: Boolean = false
 
   override def toString = s"TCommandExpr(expr = $expr)"
+
+  override def removeUnique(scope: Scope): Scope = scope
 }
 
 final case class TCommandArgs(args: List[TArg])(implicit val scope: Scope) extends TFirstCommand with Typer {
@@ -37,12 +40,15 @@ final case class TCommandArgs(args: List[TArg])(implicit val scope: Scope) exten
   override def isSimple: Boolean = false
 
   override def toString = s"TCommandArgs(args = $args)"
+
+  override def removeUnique(scope: Scope): Scope = scope
 }
 
 sealed abstract class TAtom extends TFirstCommand with Typer {
   override def codegen(implicit indent: Int, context: CodeGenContext): String
   override def tail(implicit indent: Int, context: CodeGenContext): String = codegen
   override def isSimple: Boolean
+  override def removeUnique(scope: Scope): Scope = scope
 }
 
 final class TThis(implicit val scope: Scope) extends TAtom {
@@ -116,7 +122,7 @@ final case class TPonyID(i: ID)(implicit val scope: Scope) extends TAtom with Ty
         case v:Var => i
         case m:Meth => s"${context.name}_$i"
       }
-      case None => ???
+      case None => throw new VariableOutOfScope(i)
     }
   }
 
@@ -126,9 +132,11 @@ final case class TPonyID(i: ID)(implicit val scope: Scope) extends TAtom with Ty
         case v:Var => true
         case m:Meth => false
       }
-      case None => ???
+      case None => throw new VariableOutOfScope(i)
     }
   }
+
+  override def removeUnique(scope: Scope): Scope = scope.removeScope(i)
 
 }
 

@@ -28,6 +28,8 @@ private final class TypeClassNotFoundException(msg: String)(implicit pos: Positi
 private final class VariableNotFoundException(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)
 private final class MethodNotFoundException(id: ID, name: TypeId)(implicit pos: Position, scope: Scope) extends TyperException(s"Could not find method $id in class $name")
 
+private final class VariableOutOfScope(id: ID)(implicit pos: Position, scope: Scope) extends TyperException(s"Variable $id is out of scope, are you reusing a unique?")
+
 private final class AssignmentException(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)
 private final class VariableShadowingException(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)
 private final class FieldDefinedInTrait(msg: String)(implicit pos: Position, scope: Scope) extends TyperException(msg)

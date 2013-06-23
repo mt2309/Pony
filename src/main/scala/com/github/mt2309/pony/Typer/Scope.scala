@@ -14,7 +14,8 @@ import annotation.tailrec
  */
 
 sealed abstract class IDMap
-final class Var extends IDMap
+// inScope = Where the variable goes out of scope
+final case class Var(ofType: Option[TOfType], var inScope: Option[Position] = None) extends IDMap
 final class Meth extends IDMap
 
 
@@ -37,7 +38,7 @@ final case class Scope(typeScope: TypeScope = initialScope,
 //    if (varScope.contains(id)) {
 //      throw new VariableShadowingException(s"Variable $id, of type $of shadows variable with type ${this.varScope(id)}")(pos, this)
 //    }
-    val cp: Scope = this.copy(varScope = this.varScope + (id -> of))
+    val cp: Scope = this.copy(varScope = this.varScope + (id -> new Var(of)))
     cp
   }
 
@@ -45,15 +46,12 @@ final case class Scope(typeScope: TypeScope = initialScope,
     this.copy(methScope = methScope + (id -> fun))
   }
 
-  def removeScope(id: ID): Scope = {
-    if (varScope.contains(id) && TyperHelper.isUnique(varScope(id))) {
+  def removeScope(id: ID)(implicit pos: Position): Scope = {
+    if (varScope.contains(id) && TyperHelper.isUnique(varScope(id).ofType)) {
       println(s"Removing $id")
-      println(varScope)
-      val sc = this.copy(varScope = varScope - id)
-      sc
+      varScope(id).inScope = Some(pos)
     }
-    else
-      this
+    this
   }
 
   @tailrec
@@ -175,13 +173,13 @@ final case class Scope(typeScope: TypeScope = initialScope,
   }
 
   def findID(i: ID): Option[IDMap] = {
-    if (varScope.contains(i)) Some(new Var)
+    if (varScope.contains(i)) varScope.get(i)
     else if (methScope.contains(i)) Some(new Meth)
     else None
   }
 
   def searchID(i: ID)(implicit pos: Position): Option[TOfType] = {
-    val variable = varScope.get(i)
+    val variable = varScope.get(i).map(_.ofType)
     val meth = if (variable.isDefined) variable else methScope.get(i).map(_.ofType)
 
     meth.getOrElse(throw new VariableNotFoundException(s"$i not found")(pos, this))

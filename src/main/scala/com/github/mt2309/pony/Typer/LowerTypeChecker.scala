@@ -223,11 +223,7 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
     case PonyInt(i: Int) => new TPonyInt(i).setPos(a.pos) -> scope
     case PonyDouble(d: Double) => new TPonyDouble(d).setPos(a.pos) -> scope
     case PonyString(s: String) => new TPonyString(s).setPos(a.pos) -> scope
-    case PonyID(i: ID) => {
-      val sc = scope.removeScope(i)
-      println(sc.varScope)
-      new TPonyID(i).setPos(a.pos) -> sc
-    }
+    case PonyID(i: ID) => new TPonyID(i).setPos(a.pos) -> scope
     case PonyTypeId(t: TypeId) => new TPonyTypeId(t).setPos(a.pos) -> scope
   }
 
@@ -238,8 +234,21 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
     }
     case CommandCall(id, formalArgs, args) => {
       val a = checkList(args, checkArg)
-      new TCommandCall(scope.findMethod(id, ofType)(snd.pos), checkFormal(formalArgs), a._1)(a._2).setPos(snd.pos) -> a._2
+      val sc = removeUniques(a._1, a._2)
+      new TCommandCall(scope.findMethod(id, ofType)(snd.pos), checkFormal(formalArgs), a._1)(a._2).setPos(snd.pos) -> sc
     }
+  }
+
+  private def removeUniques(list: TArgs, scope: Scope): Scope = {
+    var sc = scope
+    for (arg <- list; expr <- arg.expr) {
+      expr.unary match {
+        case TUnaryCommand(ops, command) => sc = command.first.removeUnique(sc)
+        case TUnaryLambda(ops,  lambda)  =>
+      }
+    }
+
+    sc
   }
 
   private def checkOpUnary(list: List[(Operator, Unary)])(implicit scope: Scope): (List[(Operator, TUnary)], Scope) = {
