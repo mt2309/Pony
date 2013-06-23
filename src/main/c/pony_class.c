@@ -78,6 +78,7 @@ set_value(pony_clazz * this, variable * var, unsigned int id)
           cur->value = var;
           return;
     }
+    cur = cur->next;
   }
 }
 
@@ -266,6 +267,6 @@ create_char_var(char c)
 // when we append code to the base of this, we need to get rid of it.
 int main(int argc, char const *argv[])
 {
-  initialise();
+  initialise(argc, argv);
   return 0;
 }

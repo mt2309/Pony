@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-void initialise(void);
+void initialise(int argc, char const *argv[]);
 
 struct static_clazz;
 struct pony_clazz;
