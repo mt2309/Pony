@@ -98,6 +98,21 @@ lookup_value(pony_clazz*, unsigned int);
 void
 set_value(pony_clazz *, variable *, unsigned int);
 
+void
+set_int_value(pony_clazz *, int, unsigned int);
+
+void
+set_double_value(pony_clazz *, double, unsigned int);
+
+void
+set_bool_value(pony_clazz *, bool, unsigned int);
+
+void
+set_long_value(pony_clazz *, long, unsigned int);
+
+void
+set_char_value(pony_clazz *, char, unsigned int);
+
 bool
 is_sub_type(unsigned int *, unsigned int *);
 

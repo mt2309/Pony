@@ -109,7 +109,12 @@ final case class TConstructor(contents: TMethodContent, throws: Boolean, block: 
     b.append(block.getOrElse(throw new AbstractMethodNotImplemented("")(this.pos)).codegen(indent + 1, context))
 
     for (variable <- context.variables) {
-      b.appendln(s"set_value(clazz, ${TyperHelper.createVariable(variable._2)}(${variable._1}), ${variable._1.hashCode.abs});")
+      if (TyperHelper.isPrimitive(variable._2)) {
+        b.appendln(s"set_${TyperHelper.structName(variable._2)}(clazz, ${variable._1}, ${variable._1.hashCode.abs});")
+      }
+      else {
+        b.appendln(s"set_value(clazz, ${TyperHelper.createVariable(variable._2)}(${variable._1}), ${variable._1.hashCode.abs});")
+      }
     }
 
     b.appendln("return clazz;")
@@ -198,7 +203,12 @@ final case class TFunction(isStatic: Boolean, contents: TMethodContent, results:
 
     if (!isStatic) {
       for (variable <- context.variables) {
-        b.appendln(s"set_value(this, ${TyperHelper.createVariable(variable._2)}(${variable._1}), ${variable._1.hashCode.abs});")
+        if (TyperHelper.isPrimitive(variable._2)) {
+          b.appendln(s"set_${TyperHelper.structName(variable._2)}(this, ${variable._1}, ${variable._1.hashCode.abs});")
+        }
+        else {
+          b.appendln(s"set_value(this, ${TyperHelper.createVariable(variable._2)}(${variable._1}), ${variable._1.hashCode.abs});")
+        }
       }
     }
 
@@ -269,7 +279,12 @@ final case class TMessage(contents: TMethodContent, block: Option[TBlock])(impli
     b.appendln("cleanup:")
 
     for (variable <- context.variables) {
-      b.appendln(s"set_value(this, ${TyperHelper.createVariable(variable._2)}(${variable._1}), ${variable._1.hashCode.abs});")
+      if (TyperHelper.isPrimitive(variable._2)) {
+        b.appendln(s"set_${TyperHelper.structName(variable._2)}(this, ${variable._1}, ${variable._1.hashCode.abs});")
+      }
+      else {
+        b.appendln(s"set_value(this, ${TyperHelper.createVariable(variable._2)}(${variable._1}), ${variable._1.hashCode.abs});")
+      }
     }
 
     b.appendln("return NULL;")

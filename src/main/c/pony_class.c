@@ -78,6 +78,86 @@ lookup_value(pony_clazz* this, unsigned int id)
 }
 
 void
+set_int_value(pony_clazz * this, int i, unsigned int id)
+{
+  instance_variable * cur = this->variables;
+
+  while (cur != NULL)
+  {
+    if (cur->identifier == id)
+    {
+      cur->value->int_value = i;
+      return;
+    }
+    cur = cur->next;
+  }
+}
+
+void
+set_double_value(pony_clazz * this, double d, unsigned int id)
+{
+  instance_variable * cur = this->variables;
+
+  while (cur != NULL)
+  {
+    if (cur->identifier == id)
+    {
+      cur->value->double_value = d;
+      return;
+    }
+    cur = cur->next;
+  }
+}
+
+void
+set_bool_value(pony_clazz * this, bool b, unsigned int id)
+{
+  instance_variable * cur = this->variables;
+
+  while (cur != NULL)
+  {
+    if (cur->identifier == id)
+    {
+      cur->value->bool_value = b;
+      return;
+    }
+    cur = cur->next;
+  }
+}
+
+void
+set_long_value(pony_clazz * this, long l, unsigned int id)
+{
+  instance_variable * cur = this->variables;
+
+  while (cur != NULL)
+  {
+    if (cur->identifier == id)
+    {
+      cur->value->long_value = l;
+      return;
+    }
+    cur = cur->next;
+  }
+}
+
+void
+set_char_value(pony_clazz * this, char c, unsigned int id)
+{
+  instance_variable * cur = this->variables;
+
+  while (cur != NULL)
+  {
+    if (cur->identifier == id)
+    {
+      cur->value->char_value = c;
+      return;
+    }
+    cur = cur->next;
+  }
+}
+
+void
 set_value(pony_clazz * this, variable * var, unsigned int id)
 {
   instance_variable * cur = this->variables;
