@@ -114,6 +114,9 @@ static_clazz*
 initialise_static_class(unsigned int * clazz_id, unsigned int method_count,
                         unsigned int * identifiers, pony_meth * methods);
 
+void
+free_args(unsigned int count, variable ** args);
+
 variable*
 create_clazz_var(pony_clazz* v);
 

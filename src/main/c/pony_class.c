@@ -3,6 +3,17 @@
 
 extern unsigned int clazz_set_size;
 
+void
+free_args(unsigned int count, variable ** args)
+{
+  for (int i = 0; i < count; ++i)
+  {
+    free(args[i]);
+  }
+
+  free(args);
+}
+
 unsigned int*
 initialise_bit_set(unsigned int clazz_id)
 {
