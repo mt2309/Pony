@@ -33,7 +33,7 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
 
     // Generate the header
     for (clazz <- classes) {
-      headerBuilder.append(s"unsigned int * ${clazz._1}_id;\n")
+      headerBuilder.append(s"static unsigned int * ${clazz._1}_id;\n")
       initBuilder.appendln(s"${clazz._1}_id = initialise_bit_set(${clazz._3});")(1)
 
       if (clazz._2.isInstanceOf[ConcreteClass]) {
@@ -52,15 +52,15 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
       clazz._2 match {
         case conc: ConcreteClass => {
           val context = new CodeGenContext(conc, "this", None)
-          headerBuilder.appendln(s"pony_clazz * ${clazz._1}_init(void);")(0)
-          headerBuilder.appendln(s"static_clazz * static_${clazz._1} = NULL;")(0)
-          headerBuilder.appendln(s"static_clazz * create_static_${clazz._1}(void);")(0)
+          headerBuilder.appendln(s"static pony_clazz * ${clazz._1}_init(void);")(0)
+          headerBuilder.appendln(s"static static_clazz * static_${clazz._1} = NULL;")(0)
+          headerBuilder.appendln(s"static static_clazz * create_static_${clazz._1}(void);")(0)
           sourceBuilder.append(conc.initialiseStatic(1))
           sourceBuilder.append(conc.codegen(1, context))
 
           conc match {
             case actor: TActor =>
-              headerBuilder.append(s"void ${conc.name}_dispatch(actor_t*, void*, type_t*, uint64_t, arg_t);\n")
+              headerBuilder.append(s"static void ${conc.name}_dispatch(actor_t*, void*, type_t*, uint64_t, arg_t);\n")
               sourceBuilder.append(actor.createDispatch(1, context))
             case _ =>
           }
@@ -78,7 +78,7 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
       }
     }
 
-    headerBuilder.append("#endif")
+    headerBuilder.append("\n#endif")
     initBuilder.append("}\n\n")
 
     val header = new PrintWriter(output ++ "/pony_class_ids.h", "UTF-8")

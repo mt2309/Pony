@@ -75,6 +75,8 @@ final case class TOfType(typeList: Set[TTypeElement])(implicit val scope: Scope)
       typeList.head.defaultConstructor ++ ";"
   }
 
+  def isUnique: Boolean = typeList.exists(_.mode.isInstanceOf[TUnique])
+
   def isSendable: Boolean = {
     (for (elem <- typeList) yield elem.mode match {
       case r: TReadOnly => false

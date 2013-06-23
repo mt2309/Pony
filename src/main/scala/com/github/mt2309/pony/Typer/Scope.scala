@@ -3,7 +3,8 @@ package com.github.mt2309.pony.Typer
 import com.github.mt2309.pony.Common._
 import com.github.mt2309.pony.CompilationUnit.{UnqualifiedCompilationUnits, QualifiedCompilationUnits}
 import com.github.mt2309.pony.AST._
-import scala.util.parsing.input.Position
+
+import util.parsing.input.Position
 import annotation.tailrec
 
 /**
@@ -42,6 +43,15 @@ final case class Scope(typeScope: TypeScope = initialScope,
 
   def updateScope(id: ID, fun: TBodyContent): Scope = {
     this.copy(methScope = methScope + (id -> fun))
+  }
+
+  def removeScope(id: ID): Scope = {
+    if (varScope.contains(id) && TyperHelper.isUnique(varScope(id))) {
+      println(s"Removing $id")
+      this.copy(varScope = varScope - id)
+    }
+    else
+      this
   }
 
   @tailrec

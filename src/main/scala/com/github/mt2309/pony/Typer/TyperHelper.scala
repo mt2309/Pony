@@ -11,6 +11,11 @@ import com.github.mt2309.pony.CodeGen.CodeGenContext
  */
 private object TyperHelper {
 
+  def isUnique(opt: Option[TOfType]): Boolean = opt match {
+    case Some(of) => of.isUnique
+    case None => false
+  }
+
   def subType(left: Option[TOfType], that: Option[TOfType]): Boolean = left match {
     case Some(of) => of.isSubType(that)
     case None => that match {

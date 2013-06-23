@@ -91,7 +91,7 @@ final case class TConstructor(contents: TMethodContent, throws: Boolean, block: 
 
   override def mangle: String = s"${contents.id}_${ArgsHelper.mangle(contents.combinedArgs.args)}"
 
-  override def header(current: ConcreteClass): String = s"pony_clazz * ${current.name}_${contents.id}(variable**);"
+  override def header(current: ConcreteClass): String = s"static pony_clazz * ${current.name}_${contents.id}(variable**);"
 
   override def codegen(implicit indent: Int, context: CodeGenContext): String = {
     val b = new StringBuilder(s"pony_clazz *\n${context.name}_${contents.id}(variable** args)\n{\n")
@@ -105,8 +105,7 @@ final case class TConstructor(contents: TMethodContent, throws: Boolean, block: 
       b.appendln(s"${TyperHelper.typeToClass(variable._2)} ${variable._1} = lookup_value(clazz, ${variable._1.hashCode.abs})->${TyperHelper.structName(variable._2)};")
     }
 
-    b.appendln("free(args);")
-
+    b.appendln(s"free_args(${contents.args.length}, args);")
     b.append(block.getOrElse(throw new AbstractMethodNotImplemented("")(this.pos)).codegen(indent + 1, context))
 
     for (variable <- context.variables) {
@@ -171,7 +170,7 @@ final case class TFunction(contents: TMethodContent, results: TParams, throws: B
     }
   }
 
-  override def header(current: ConcreteClass): String = s"variable** ${current.name}_${contents.id}(pony_clazz*, variable**);"
+  override def header(current: ConcreteClass): String = s"static variable** ${current.name}_${contents.id}(pony_clazz*, variable**);"
 
   override def codegen(implicit indent: Int, context: CodeGenContext): String = {
     val b = new StringBuilder(s"variable **\n${context.name}_${contents.id}(pony_clazz* this, variable** args)\n{\n")
@@ -245,7 +244,7 @@ final case class TMessage(contents: TMethodContent, block: Option[TBlock])(impli
 
   override def ofType: Option[TOfType] = None
 
-  override def header(current: ConcreteClass): String = s"variable** ${current.name}_${contents.id}(pony_clazz*, variable**);"
+  override def header(current: ConcreteClass): String = s"static variable** ${current.name}_${contents.id}(pony_clazz*, variable**);"
 
   override def codegen(implicit indent: Int, context: CodeGenContext): String = {
     val b = new StringBuilder(s"variable **\n${context.name}_${contents.id}(pony_clazz* this, variable** args)\n{\n")
@@ -257,8 +256,7 @@ final case class TMessage(contents: TMethodContent, block: Option[TBlock])(impli
       b.appendln(s"${TyperHelper.typeToClass(variable._2)} ${variable._1} = lookup_value(this, ${variable._1.hashCode.abs})->${TyperHelper.structName(variable._2)};")
     }
 
-    b.appendln("free(args);")
-
+    b.appendln(s"free_args(${contents.args.length}, args);")
     b.append(block.getOrElse(throw new AbstractMethodNotImplemented(s"${contents.id} in class ${scope.currentClass.name}")(this.pos)).codegen(indent + 1, context))
 
     b.append("\n")
