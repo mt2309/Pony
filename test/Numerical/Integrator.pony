@@ -25,7 +25,8 @@ actor Integrator {
     var localPi: Double = 0d
 
     var startPoint: Double = (rank) / (actorCount)
-    var endPoint: Double = (rank + 1d) / (actorCount)
+    var next: Double = rank + 1d
+    var endPoint: Double = next / (actorCount)
 
     while(startPoint < endPoint) {
       var nextPoint: Double = startPoint + stepSize
@@ -37,12 +38,12 @@ actor Integrator {
   }
 }
 
-static object Main {
-  function main(count: Int) {
-    var acc: Accumulator = Accumulator.build(10)
+actor Main {
+  message main(count: Int, iterations: Int) {
+    var acc: Accumulator = Accumulator.build(count)
 
     for i:Int in (0 to count) {
-      var in: Integrator = Integrator.build(10000, count, acc)
+      var in: Integrator = Integrator.build(iterations, count, acc)
       (in.partial_pi(i))
     }
   }
