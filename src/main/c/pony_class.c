@@ -130,6 +130,8 @@ new_vtable(unsigned int count, unsigned int * ids, pony_meth * methods)
     }
   }
 
+  free(ids);
+
   return head;
 }
 
@@ -166,6 +168,8 @@ create_instance_variables(pony_clazz * this, variable ** vars, unsigned int * id
       cur = cur->next;
     }
   }
+
+  free(ids);
 
   this->variables = head;
 }
