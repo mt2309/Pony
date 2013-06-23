@@ -1,4 +1,4 @@
-trait Imm[Int] {
+trait Imm[K] {
 
 }
 
