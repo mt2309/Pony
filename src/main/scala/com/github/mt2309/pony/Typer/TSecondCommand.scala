@@ -1,6 +1,7 @@
 package com.github.mt2309.pony.Typer
 
 import com.github.mt2309.pony.CodeGen.CodeGenContext
+import com.github.mt2309.pony.AST
 
 /**
  * User: mthorpe
@@ -43,7 +44,7 @@ final case class TCommandCall(id: TBodyContent, formalArgs: TFormalArgs, args: T
     case m: TInstanceVariable => throw new UnsupportedOperationException
     case v: TMethod => {
       if (v.formalArgs.length == formalArgs.length) {
-        val zipArgs = v.args.zip(args)
+        val zipArgs: List[(TParam, TArg)] = v.args.zip(args)
 
         for (arg <- zipArgs) {
           if (!TyperHelper.subType(arg._2.expr.get.ofType, arg._1.ofType)) {
@@ -71,8 +72,16 @@ final case class TCommandCall(id: TBodyContent, formalArgs: TFormalArgs, args: T
         e.append(", NULL")
       }
       case c: TConstructor => {
-        b.append(s"(pony_clazz*)pony_send(pony_create(${id.scope.currentClass.name}_dispatch, NULL), ${id.name.hashCode.abs}, create_args(${args.length}")
-        e.append(s", NULL")
+        id.scope.currentClass.currentClass.get match {
+          case a: AST.Actor => {
+            b.append(s"(pony_clazz*)pony_send(pony_create(${id.scope.currentClass.name}_dispatch, NULL), ${id.name.hashCode.abs}, create_args(${args.length}")
+            e.append(s", NULL")
+          }
+          case o: AST.Object => {
+          }
+            b.append(s"${id.scope.currentClass.name}_${id.name}(create_args(${args.length}")
+          case _ => throw new RuntimeException
+        }
       }
       case a: TAmbient => b.append(s"${id.scope.currentClass.name}_${id.name}(${context.workingID}, create_args(${args.length}")
       case f: TField => throw new UnsupportedOperationException
