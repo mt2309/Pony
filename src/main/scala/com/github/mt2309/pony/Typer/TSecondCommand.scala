@@ -29,8 +29,6 @@ final case class TSecondCommandArgs(args: TArgs)(implicit override val scope: Sc
       }
     }
 
-//    b.append(")")
-
     b.mkString
   }
 
@@ -44,11 +42,19 @@ final case class TCommandCall(id: TBodyContent, formalArgs: TFormalArgs, args: T
 
   override def codegen(implicit indent: Int, context: CodeGenContext): String = {
     val b = new StringBuilder
+    val e = new StringBuilder
 
     id match {
       case f: TFunction => b.append(s"${id.scope.currentClass.name}_${id.name}(${context.workingID}, create_args(${args.length}")
-      case m: TMessage => b.append(s"${id.scope.currentClass.name}_${id.name}(${context.workingID}, create_args(${args.length}")
-      case c: TConstructor => b.append(s"${id.scope.currentClass.name}_${id.name}(create_args(${args.length}")
+      case m: TMessage => {
+        b.append(s"pony_send((actor_t*)${context.workingID}, ${id.name.hashCode.abs}, create_args(${args.length}")
+        e.append(", NULL")
+//        b.append(s"${id.scope.currentClass.name}_${id.name}(${context.workingID}, create_args(${args.length}")
+      }
+      case c: TConstructor => {
+        b.append(s"(pony_clazz*)pony_send(pony_create(${id.scope.currentClass.name}_dispatch, NULL), ${id.name.hashCode.abs}, create_args(${args.length}")
+        e.append(s", NULL")
+      }
       case a: TAmbient => b.append(s"${id.scope.currentClass.name}_${id.name}(${context.workingID}, create_args(${args.length}")
       case f: TField => throw new UnsupportedOperationException
       case d: TDelegate => throw new UnsupportedOperationException
@@ -64,7 +70,9 @@ final case class TCommandCall(id: TBodyContent, formalArgs: TFormalArgs, args: T
       }
     }
 
-    b.append("))")
+    b.append(")")
+    b.append(e)
+    b.append(")")
 
     b.mkString
   }

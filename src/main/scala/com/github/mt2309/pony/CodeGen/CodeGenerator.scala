@@ -29,7 +29,7 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
     val headerBuilder = new StringBuilder(CodeGenerator.headerString)
     val initBuilder = new StringBuilder(CodeGenerator.sourceString)
 
-    initBuilder.append(s"\n\nvoid initialise(int argc, char const *argv[])\n{\n  clazz_set_size = $intArraySize;\n")
+    initBuilder.append(s"\n\nvoid initialise(int argc, char *argv[])\n{\n\tclazz_set_size = $intArraySize;\n")
 
     // Generate the header
     for (clazz <- classes) {
@@ -58,14 +58,18 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
           sourceBuilder.append(conc.initialiseStatic(1))
           sourceBuilder.append(conc.codegen(1, context))
 
-          if (conc.isInstanceOf[TActor]) {
-            headerBuilder.append(s"void ${conc.name}_dispatch(actor_t*, void*, type_t*, uint64_t, arg_t)")
+          conc match {
+            case actor: TActor =>
+              headerBuilder.append(s"void ${conc.name}_dispatch(actor_t*, void*, type_t*, uint64_t, arg_t);\n")
+              sourceBuilder.append(actor.createDispatch(1, context))
+            case _ =>
           }
 
           for (body <- conc.methods) {
             headerBuilder.appendln(body._2.header(conc))(0)
             if (body._1 == "main") {
-              initBuilder.appendln(s"${conc.name}_${body._1}(NULL, create_args(2, create_int_var(atoi(argv[1])), create_int_var(atoi(argv[2]))));")(1)
+              initBuilder.appendln(s"pony_start(argc, argv, pony_create(${conc.name}_dispatch, NULL));")(1)
+//              initBuilder.appendln(s"${conc.name}_${body._1}(NULL, create_args(2, create_int_var(atoi(argv[1])), create_int_var(atoi(argv[2]))));")(1)
             }
             sourceBuilder.append(body._2.codegen(1, context.copy(functionName = Some(body._1))))
           }
@@ -95,7 +99,7 @@ private object CodeGenerator {
   val headerString: String = {
     val b = new StringBuilder
     b.append("#include <stdlib.h>\n#include <stdio.h>\n#include <stdbool.h>\n\n")
-    b.append("#include \"pony_class.h\"\n\n#ifndef PONY_PROGRAM_H\n#define PONY_PROGRAM_H\n\nvoid initialise(int argc, char const *argv[]);\nunsigned int clazz_set_size;\n\n")
+    b.append("#include \"pony_class.h\"\n\n#ifndef PONY_PROGRAM_H\n#define PONY_PROGRAM_H\n\nvoid initialise(int argc, char *argv[]);\nunsigned int clazz_set_size;\n\n")
 
     b.mkString
   }

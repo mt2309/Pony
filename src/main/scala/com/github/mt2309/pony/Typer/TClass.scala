@@ -2,6 +2,7 @@ package com.github.mt2309.pony.Typer
 
 import com.github.mt2309.pony.Common._
 import com.github.mt2309.pony.CodeGen.CodeGenContext
+import collection.immutable.IndexedSeq
 
 /**
  * User: mthorpe
@@ -167,6 +168,45 @@ abstract class ConcreteClass(implicit override val scope: Scope) extends PonyCla
 }
 
 final case class TActor (name: TypeId, formalArgs: FormalParams, is:TIs, typeBody: TTypeBody)(implicit override val scope: Scope) extends ConcreteClass {
+
+  def createDispatch(implicit indent: Int, context: CodeGenContext): String = {
+    val b = new StringBuilder
+
+    b.appendln(s"void ${name}_dispatch(actor_t* this, void* p, type_t* type, uint64_t id, arg_t arg)")(indent - 1)
+    b.appendln("{")(indent - 1)
+
+    b.appendln("switch (id)")
+    b.appendln("{")
+
+    val msgs: IndexedSeq[(Int, TBodyContent)] = methods.filter(m => m._2.isInstanceOf[TMessage] || m._2.isInstanceOf[TConstructor]).toIndexedSeq.map(t => t._1.hashCode.abs -> t._2).sortWith(_._1 < _._1)
+
+    for (msg <- msgs) {
+      if (msg._1 == "main".hashCode.abs) {
+        b.appendln(s"case PONY_MAIN:")(indent + 1)
+        b.appendln(s"case ${msg._1}:")(indent + 1)
+        b.appendln(s"{")(indent + 1)
+
+        b.appendln("pony_main_t* m = arg.p;")(indent + 2)
+
+        b.appendln(s"${context.name}_main(p, create_args(2, create_int_var(atoi(m->argv[1])), create_int_var(atoi(m->argv[2]))));")(indent + 2)
+      }
+
+      else {
+
+        b.appendln(s"case ${msg._1}:")(indent + 1)
+        b.appendln(s"{")(indent + 1)
+        b.appendln(s"${msg._2.dispatch}")(indent + 2)
+      }
+
+      b.appendln(s"break;")(indent + 2)
+      b.appendln(s"}")(indent + 1)
+    }
+
+    b.appendln("}")
+    b.appendln("}")(indent - 1)
+    b.mkString
+  }
+
   override def toString = s"TActor(name = $name, formal = $formalArgs, is = $is, typebody = $typeBody)"
 }
 

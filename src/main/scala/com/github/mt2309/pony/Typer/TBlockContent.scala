@@ -27,6 +27,8 @@ final class TNative(implicit val scope: Scope) extends TBlockContent {
     val b = new StringBuilder
 
     b.appendln("printf(\"%f\\n\", x);")
+    b.appendln("pony_exitcode(EXIT_SUCCESS);")
+    b.appendln("pony_stop();")
 
     b.mkString
   }
