@@ -48,7 +48,9 @@ final case class Scope(typeScope: TypeScope = initialScope,
   def removeScope(id: ID): Scope = {
     if (varScope.contains(id) && TyperHelper.isUnique(varScope(id))) {
       println(s"Removing $id")
-      this.copy(varScope = varScope - id)
+      println(varScope)
+      val sc = this.copy(varScope = varScope - id)
+      sc
     }
     else
       this
@@ -157,7 +159,7 @@ final case class Scope(typeScope: TypeScope = initialScope,
     case TDelegate(name, ofType) => (0, 1)
     case TConstructor(contents, throws, block) => (contents.combinedArgs.args.length, 1)
     case TAmbient(contents, throws, block) => (contents.combinedArgs.args.length, 0)
-    case TFunction(contents, results, throws, block) => (contents.combinedArgs.args.length, results.length)
+    case TFunction(s, contents, results, throws, block) => (contents.combinedArgs.args.length, results.length)
     case TMessage(contents, block) => (contents.combinedArgs.args.length, 0)
   }
 

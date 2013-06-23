@@ -97,7 +97,6 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
     sc
   }
 
-
   private def checkIs(is: Is)(implicit scope: Scope): TIs = {
     val cached = typeCache.lookupIs(is)
 
@@ -147,13 +146,9 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
   }
 
   private def checkLambda(l: Lambda)(implicit scope: Scope): TLambda = {
-    val args = checkArgs(l.args)
+    val args = checkList(l.args, checkArg)
 
     new TLambda(checkMode(l.mode), args._1, checkParams(l.result), l.throws, l.block.map(checkBlock(_)(args._2))).setPos(l.pos)
-  }
-
-  private def checkArgs(list: List[Arg])(implicit scope: Scope): (List[TArg], Scope) = {
-    checkList(list, checkArg)
   }
 
   private def checkArg(arg: Arg, scope: Scope): (TArg, Scope) = {
@@ -196,7 +191,7 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
   }
 
   private def checkCommand(command: Command)(implicit scope: Scope): (TCommand, Scope) = {
-    val fst: (TFirstCommand, Scope) = checkFirstCommand(command.first)
+    val fst = checkFirstCommand(command.first)
     val ofType = fst._1.extractOfType
 
     val snd: (Option[TSecondCommand], Scope) = if (command.second.isDefined) {
@@ -215,7 +210,7 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
       new TCommandExpr(expression._1).setPos(fst.pos) -> expression._2
     }
     case CommandArgs(args) => {
-      val a = checkArgs(args)
+      val a = checkList(args, checkArg)
       new TCommandArgs(a._1)(a._2).setPos(fst.pos) -> a._2
     }
     case t: Atom => matchAtom(t)
@@ -228,17 +223,21 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
     case PonyInt(i: Int) => new TPonyInt(i).setPos(a.pos) -> scope
     case PonyDouble(d: Double) => new TPonyDouble(d).setPos(a.pos) -> scope
     case PonyString(s: String) => new TPonyString(s).setPos(a.pos) -> scope
-    case PonyID(i: ID) => new TPonyID(i).setPos(a.pos) -> scope.removeScope(i)
+    case PonyID(i: ID) => {
+      val sc = scope.removeScope(i)
+      println(sc.varScope)
+      new TPonyID(i).setPos(a.pos) -> sc
+    }
     case PonyTypeId(t: TypeId) => new TPonyTypeId(t).setPos(a.pos) -> scope
   }
 
   private def checkSecondCommand(snd: SecondCommand, ofType: Option[TOfType])(implicit scope: Scope): (TSecondCommand, Scope) = snd match {
     case SecondCommandArgs(args) => {
-      val a = checkArgs(args)
+      val a = checkList(args, checkArg)
       new TSecondCommandArgs(a._1)(a._2).setPos(snd.pos) -> a._2
     }
     case CommandCall(id, formalArgs, args) => {
-      val a = checkArgs(args)
+      val a = checkList(args, checkArg)
       new TCommandCall(scope.findMethod(id, ofType)(snd.pos), checkFormal(formalArgs), a._1)(a._2).setPos(snd.pos) -> a._2
     }
   }
@@ -443,11 +442,11 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
         val con = checkContents(contents)
         new TAmbient(con._1, throws, block.map(checkBlock(_)(con._2))) -> scope
       }
-      case Function(contents, results, throws, block) => {
+      case Function(s, contents, results, throws, block) => {
         val con = checkContents(contents)
         val res = checkParams(results)(con._2)
         val sc = if (res.isEmpty) con._2 else res.last.scope
-        val fun = new TFunction(con._1, res, throws, block.map(checkBlock(_)(sc)))
+        val fun = new TFunction(s, con._1, res, throws, block.map(checkBlock(_)(sc)))
         val newScope = scope.updateScope(contents.id, fun)
 
         fun -> newScope

@@ -87,8 +87,8 @@ private final class PonyParser(val contents: FileContents)(implicit val filename
   }
 
   private def function: Parser[BodyContent] = positioned {
-    "function" ~> methodContent ~ results ~ throws ~ OptBlock ^^ {
-      s => new Function(contents = s._1._1._1, results = s._1._1._2, throws = s._1._2, block = s._2)
+    ("static".? <~ "function") ~ methodContent ~ results ~ throws ~ OptBlock ^^ {
+      s => new Function(isStatic = s._1._1._1._1.isDefined ,contents = s._1._1._1._2, results = s._1._1._2, throws = s._1._2, block = s._2)
     }
   }
 

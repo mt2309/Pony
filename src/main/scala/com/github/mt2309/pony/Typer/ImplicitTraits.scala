@@ -13,11 +13,11 @@ private object ImplicitTraits {
   val Actor: TTrait = new TTrait("Actor", List.empty, new TIs(List.empty), new TTypeBody(Map.empty))
 
   val Hashable: TTrait = new TTrait("Hashable", List.empty, new TIs(List.empty),
-    new TTypeBody(Map("hash" -> new TFunction(
+    new TTypeBody(Map("hash" -> new TFunction(false,
       new TMethodContent(new TReadOnly, "hash", new TCombinedArgs(List.empty, List.empty)), List(new TParam("hash", Some(intOfType))), false, Some(new TBlock(List.empty, None, None))))))
 
   val Partial: TTrait = new TTrait("Partial", List.empty, new TIs(List.empty),
-    new TTypeBody(Map("mirror" -> new TFunction(
+    new TTypeBody(Map("mirror" -> new TFunction(false,
       new TMethodContent(new TReadOnly, "mirror", new TCombinedArgs(List.empty, List.empty)), List(new TParam("mirror", None)), false, Some(new TBlock(List.empty, None, None))))))
 
   val Construct: TTrait = new TTrait("Construct", List.empty, new TIs(List.empty),
@@ -36,7 +36,7 @@ private object ImplicitTraits {
 
   val tArray: TObject = new TObject("Array", List("K"), new TIs(List(tPO)), new TTypeBody(Map.empty))
 
-  val range: TFunction = new TFunction(
+  val range: TFunction = new TFunction(true,
     new TMethodContent(new TReadOnly, "to", new TCombinedArgs(List.empty, List(new TParam("until",Some(numericOfType))))), List(new TParam("arr",
       Some(new TOfType(Set(new TTypeClass(moduleMember = tArray, formalArgs = List(pInt))))))), false, Some(new TBlock))
 }

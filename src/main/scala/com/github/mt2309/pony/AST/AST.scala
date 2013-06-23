@@ -77,7 +77,7 @@ final case class Field(id: ID, ofType: OfType, expr: Option[Expr]) extends BodyC
 final case class Delegate(id: ID, ofType: OfType) extends BodyContent(name = id, returnType = ofType) with AST
 final case class Constructor(contents: MethodContent, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with AST
 final case class Ambient(contents: MethodContent, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with AST
-final case class Function(contents: MethodContent, results: Params, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with AST
+final case class Function(isStatic: Boolean, contents: MethodContent, results: Params, throws: Boolean, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with AST
 final case class Message(contents: MethodContent, block: Option[Block]) extends BodyContent(contents.id, block.isEmpty) with AST
 
 

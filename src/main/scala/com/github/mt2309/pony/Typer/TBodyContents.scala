@@ -150,7 +150,7 @@ final case class TAmbient(contents: TMethodContent, throws: Boolean, block: Opti
   def dispatch(implicit indent: Int, context: CodeGenContext): String = throw new RuntimeException
 }
 
-final case class TFunction(contents: TMethodContent, results: TParams, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent with TMethod {
+final case class TFunction(isStatic: Boolean, contents: TMethodContent, results: TParams, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent with TMethod {
 
   override def name = contents.id
   override def isAbstract = block.isEmpty
@@ -181,8 +181,11 @@ final case class TFunction(contents: TMethodContent, results: TParams, throws: B
     for (result <- results) {
       b.appendln(s"${TyperHelper.typeToClass(result.ofType)} ${result.name} = ${TyperHelper.typeToConstructor(result.ofType)};")
     }
-    for (variable <- context.variables) {
-      b.appendln(s"${TyperHelper.typeToClass(variable._2)} ${variable._1} = lookup_value(this, ${variable._1.hashCode.abs})->${TyperHelper.structName(variable._2)};")
+
+    if (!isStatic) {
+      for (variable <- context.variables) {
+        b.appendln(s"${TyperHelper.typeToClass(variable._2)} ${variable._1} = lookup_value(this, ${variable._1.hashCode.abs})->${TyperHelper.structName(variable._2)};")
+      }
     }
 
     b.appendln(s"free_args(${contents.args.length}, args);")
@@ -193,8 +196,10 @@ final case class TFunction(contents: TMethodContent, results: TParams, throws: B
     b.appendln("return_label:")
     b.appendln("cleanup:")
 
-    for (variable <- context.variables) {
-      b.appendln(s"set_value(this, ${TyperHelper.createVariable(variable._2)}(${variable._1}), ${variable._1.hashCode.abs});")
+    if (!isStatic) {
+      for (variable <- context.variables) {
+        b.appendln(s"set_value(this, ${TyperHelper.createVariable(variable._2)}(${variable._1}), ${variable._1.hashCode.abs});")
+      }
     }
 
     b.appendTo(s"return create_args(${results.length}")
