@@ -255,6 +255,14 @@ create_long_var(long l)
 }
 
 variable*
+create_actor_var(actor_t* a)
+{
+  variable* var = malloc(sizeof(variable));
+  var->actor_value = a;
+  return var;
+}
+
+variable*
 create_char_var(char c)
 {
   variable* var = malloc(sizeof(variable));
@@ -265,7 +273,7 @@ create_char_var(char c)
 
 // tagging main in so we can get a complete build
 // when we append code to the base of this, we need to get rid of it.
-int main(int argc, char const *argv[])
+int main(int argc, char *argv[])
 {
   initialise(argc, argv);
   return 0;

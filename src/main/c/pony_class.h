@@ -5,7 +5,9 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-void initialise(int argc, char const *argv[]);
+#include "pony/pony.h"
+
+void initialise(int argc, char *argv[]);
 
 struct static_clazz;
 struct pony_clazz;
@@ -63,6 +65,7 @@ typedef struct pony_clazz
 typedef union variable
 {
     pony_clazz* clazz_value;
+    actor_t * actor_value;
     double double_value;
     int int_value;
     bool bool_value;
@@ -113,6 +116,9 @@ initialise_static_class(unsigned int * clazz_id, unsigned int method_count,
 
 variable*
 create_clazz_var(pony_clazz* v);
+
+variable*
+create_actor_var(actor_t* a);
 
 variable*
 create_double_var(double d);
