@@ -58,10 +58,14 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
           sourceBuilder.append(conc.initialiseStatic(1))
           sourceBuilder.append(conc.codegen(1, context))
 
+          if (conc.isInstanceOf[TActor]) {
+            headerBuilder.append(s"void ${conc.name}_dispatch(actor_t*, void*, type_t*, uint64_t, arg_t)")
+          }
+
           for (body <- conc.methods) {
             headerBuilder.appendln(body._2.header(conc))(0)
             if (body._1 == "main") {
-              initBuilder.appendln(s"${conc.name}_${body._1}(NULL, create_args(1, create_int_var(atoi(argv[1]))));")(1)
+              initBuilder.appendln(s"${conc.name}_${body._1}(NULL, create_args(2, create_int_var(atoi(argv[1])), create_int_var(atoi(argv[2]))));")(1)
             }
             sourceBuilder.append(body._2.codegen(1, context.copy(functionName = Some(body._1))))
           }
