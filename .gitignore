@@ -6,3 +6,8 @@ src/main/c/pony_class_ids.c
 src/main/c/pony_class_ids.h
 src/main/c/a.out
 src/main/c/a.out.dSYM/
+src/main/c/obj/
+src/main/c/bin/
+src/main/c/Makefile
+src/main/c/libPony.make
+src/main/c/pony.make
