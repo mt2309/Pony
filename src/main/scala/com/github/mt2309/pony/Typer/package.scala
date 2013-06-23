@@ -11,6 +11,8 @@ import language.implicitConversions
  */
 package object Typer {
 
+  var implicitSender: Boolean = true
+
 
   type UnTypedScope = Map[TypeId, (AST.ModuleMember, CompilationUnits)]
   type TypeScope = Map[TypeId, TModuleMember]

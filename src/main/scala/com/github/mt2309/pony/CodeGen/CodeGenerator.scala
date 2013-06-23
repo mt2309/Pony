@@ -52,7 +52,7 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
       clazz._2 match {
         case conc: ConcreteClass => {
           val context = new CodeGenContext(conc, "this", None)
-          headerBuilder.appendln(s"pony_clazz * ${clazz._1}_construct(void);")(0)
+          headerBuilder.appendln(s"pony_clazz * ${clazz._1}_init(void);")(0)
           headerBuilder.appendln(s"static_clazz * static_${clazz._1} = NULL;")(0)
           headerBuilder.appendln(s"static_clazz * create_static_${clazz._1}(void);")(0)
           sourceBuilder.append(conc.initialiseStatic(1))

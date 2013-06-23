@@ -38,6 +38,26 @@ final case class TSecondCommandArgs(args: TArgs)(implicit override val scope: Sc
 }
 
 final case class TCommandCall(id: TBodyContent, formalArgs: TFormalArgs, args: TArgs)(implicit override val scope: Scope) extends TSecondCommand with Typer {
+
+  id match {
+    case m: TInstanceVariable => throw new UnsupportedOperationException
+    case v: TMethod => {
+      if (v.formalArgs.length == formalArgs.length) {
+        val zipArgs = v.args.zip(args)
+
+        for (arg <- zipArgs) {
+          if (!TyperHelper.subType(arg._2.expr.get.ofType, arg._1.ofType)) {
+            throw new TypeMismatch(arg._2.expr.get.ofType.toString, arg._1.ofType.toString)
+          }
+        }
+      }
+      else {
+        throw new ArgumentMismatchException(v)
+      }
+    }
+  }
+
+
   override def extractOfType(fst: Option[TOfType]): Option[TOfType] = id.ofType
 
   override def codegen(implicit indent: Int, context: CodeGenContext): String = {
@@ -49,7 +69,6 @@ final case class TCommandCall(id: TBodyContent, formalArgs: TFormalArgs, args: T
       case m: TMessage => {
         b.append(s"pony_send((actor_t*)${context.workingID}, ${id.name.hashCode.abs}, create_args(${args.length}")
         e.append(", NULL")
-//        b.append(s"${id.scope.currentClass.name}_${id.name}(${context.workingID}, create_args(${args.length}")
       }
       case c: TConstructor => {
         b.append(s"(pony_clazz*)pony_send(pony_create(${id.scope.currentClass.name}_dispatch, NULL), ${id.name.hashCode.abs}, create_args(${args.length}")
@@ -64,8 +83,7 @@ final case class TCommandCall(id: TBodyContent, formalArgs: TFormalArgs, args: T
       b.append(", NULL")
     }
     else {
-      for (arg <- args) {
-        val e = arg.expr.get
+      for (arg <- args; e <- arg.expr) {
         b.append(s", ${TyperHelper.createVariable(e)}(${e.codegen})")
       }
     }

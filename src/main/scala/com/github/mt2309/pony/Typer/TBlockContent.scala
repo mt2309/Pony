@@ -26,7 +26,7 @@ final class TNative(implicit val scope: Scope) extends TBlockContent {
   override def codegen(implicit indent: Int, context: CodeGenContext): String = {
     val b = new StringBuilder
 
-    b.appendln("printf(\"%f\\n\", x);")
+    b.appendln("printf(\"%9.15f\\n\", x);")
     b.appendln("pony_exitcode(EXIT_SUCCESS);")
     b.appendln("pony_stop();")
 

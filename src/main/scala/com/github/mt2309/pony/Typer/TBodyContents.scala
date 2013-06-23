@@ -9,7 +9,9 @@ import com.github.mt2309.pony.CodeGen.CodeGenContext
  * Time: 17:26
  */
 
-sealed abstract class TBodyContent(val name: ID, val isAbstract: Boolean = false)(implicit val scope: Scope) extends Typer {
+sealed abstract class TBodyContent(implicit val scope: Scope) extends Typer {
+  def name: ID
+  def isAbstract: Boolean
   def ofType: Option[TOfType]
   def mangle: String
   override def codegen(implicit indent: Int, context: CodeGenContext): String
@@ -18,7 +20,18 @@ sealed abstract class TBodyContent(val name: ID, val isAbstract: Boolean = false
   def cResult: String
 }
 
-final case class TField(id: ID, ofType: Option[TOfType], expr: Option[TExpr])(implicit override val scope: Scope) extends TBodyContent(id, expr.isEmpty) {
+sealed trait TInstanceVariable
+sealed trait TMethod {
+  def contents: TMethodContent
+  def formalArgs: FormalParams = contents.combinedArgs.formalArgs
+  def args: TParams = contents.combinedArgs.args
+}
+
+final case class TField(id: ID, ofType: Option[TOfType], expr: Option[TExpr])(implicit override val scope: Scope) extends TBodyContent with TInstanceVariable {
+
+  override def name = id
+  override def isAbstract = expr.isEmpty
+
   override def mangle: String = {
     if (ofType.isDefined) {
       if (ofType.get.size == 0)
@@ -41,7 +54,11 @@ final case class TField(id: ID, ofType: Option[TOfType], expr: Option[TExpr])(im
   def dispatch(implicit indent: Int, context: CodeGenContext): String = throw new RuntimeException
 }
 
-final case class TDelegate(id: ID, ofType: Option[TOfType])(implicit override val scope: Scope) extends TBodyContent(name = id) {
+final case class TDelegate(id: ID, ofType: Option[TOfType])(implicit override val scope: Scope) extends TBodyContent with TInstanceVariable {
+
+  override def name = id
+  override def isAbstract = false
+
   override def mangle: String = {
     if (ofType.isDefined) {
       if (ofType.get.size == 0)
@@ -65,7 +82,10 @@ final case class TDelegate(id: ID, ofType: Option[TOfType])(implicit override va
 
 }
 
-final case class TConstructor(contents: TMethodContent, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty) {
+final case class TConstructor(contents: TMethodContent, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent with TMethod {
+
+  override def name = contents.id
+  override def isAbstract = block.isEmpty
 
   override def ofType: Option[TOfType] = None
 
@@ -76,7 +96,7 @@ final case class TConstructor(contents: TMethodContent, throws: Boolean, block: 
   override def codegen(implicit indent: Int, context: CodeGenContext): String = {
     val b = new StringBuilder(s"pony_clazz *\n${context.name}_${contents.id}(variable** args)\n{\n")
 
-    b.appendln(s"pony_clazz * clazz = ${scope.currentClass.name}_construct();")
+    b.appendln(s"pony_clazz * clazz = ${context.name}_init();")
 
     for (param <- contents.combinedArgs.args.zipWithIndex) {
       b.appendln(s"${TyperHelper.typeToClass(param._1.ofType)} ${param._1.name} = args[${param._2}]->${TyperHelper.structName(param._1.ofType)};")
@@ -105,7 +125,10 @@ final case class TConstructor(contents: TMethodContent, throws: Boolean, block: 
   def dispatch(implicit indent: Int, context: CodeGenContext): String = s"pony_set(${context.name}_${contents.id}(arg.p), NULL);"
 }
 
-final case class TAmbient(contents: TMethodContent, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty) {
+final case class TAmbient(contents: TMethodContent, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent with TMethod {
+  override def name = contents.id
+  override def isAbstract = block.isEmpty
+
   override def mangle: String = {
     if (contents.combinedArgs.args.size == 0)
       s"${contents.id}_no_arguments"
@@ -126,7 +149,11 @@ final case class TAmbient(contents: TMethodContent, throws: Boolean, block: Opti
   def dispatch(implicit indent: Int, context: CodeGenContext): String = throw new RuntimeException
 }
 
-final case class TFunction(contents: TMethodContent, results: TParams, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty) {
+final case class TFunction(contents: TMethodContent, results: TParams, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent with TMethod {
+
+  override def name = contents.id
+  override def isAbstract = block.isEmpty
+
   override def mangle: String = {
     if (contents.combinedArgs.args.size == 0)
       s"${contents.id}"
@@ -194,7 +221,16 @@ final case class TFunction(contents: TMethodContent, results: TParams, throws: B
   def dispatch(implicit indent: Int, context: CodeGenContext): String = throw new RuntimeException
 }
 
-final case class TMessage(contents: TMethodContent, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty) {
+final case class TMessage(contents: TMethodContent, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent with TMethod {
+
+  for (param <- contents.args) {
+    if (!TyperHelper.sendable(param.ofType)) {
+      System.err.println(s"Mode mismatch on message, required to be unique or immutable")
+    }
+  }
+
+  override def name = contents.id
+  override def isAbstract = block.isEmpty
 
   override def mangle: String = {
     if (contents.combinedArgs.args.size == 0)

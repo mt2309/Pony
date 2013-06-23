@@ -2,7 +2,7 @@ package com.github.mt2309.pony.Typer
 
 import com.github.mt2309.pony.Common._
 import com.github.mt2309.pony.AST._
-import util.parsing.input.Positional
+import util.parsing.input.{Position, Positional}
 import annotation.tailrec
 import com.github.mt2309.pony.CodeGen.CodeGenContext
 
@@ -16,6 +16,7 @@ import com.github.mt2309.pony.CodeGen.CodeGenContext
 private[pony] trait Typer extends NotNull with Positional {
   def scope: Scope
   def codegen(implicit indent: Int, context: CodeGenContext): String
+  implicit def curPos: Position = pos
 }
 
 final case class PreTypedModule(imports: CompilationUnits, classes: Map[TypeId, ModuleMember])(implicit val scope: Map[TypeId, ModuleMember], val filename: Filename) extends NotNull with Positional
@@ -50,7 +51,7 @@ final case class TIs(list: List[TTypeClass])(implicit val scope: Scope) extends 
     TyperHelper.reduceMethods(bodies)
   }
 
-  def isSubType(that: TTypeElement): Boolean = ???
+  def isSubType(that: TTypeElement): Boolean = list.contains(that)
 
   override def codegen(implicit indent: Int, context: CodeGenContext): String = ???
 
@@ -72,6 +73,16 @@ final case class TOfType(typeList: Set[TTypeElement])(implicit val scope: Scope)
       "0;"
     else
       typeList.head.defaultConstructor ++ ";"
+  }
+
+  def isSendable: Boolean = {
+    (for (elem <- typeList) yield elem.mode match {
+      case r: TReadOnly => false
+      case i: TImmutable => true
+      case m: TMutable => false
+      case u: TUnique => true
+      case TModeExpr(expr) => ???
+    }).reduce(_ && _)
   }
 
   def isPrimitive: Boolean = isSubType(Some(primTOfType))
@@ -104,13 +115,15 @@ final case class TOfType(typeList: Set[TTypeElement])(implicit val scope: Scope)
 
   def isSubType(that: Option[TOfType]): Boolean = {
 
-    if (that.isDefined) {
-      (for (t <- this.typeList) yield {
-        (for (tt <- that.get.typeList) yield tt == t || t.isSubType(tt)).reduce(_ || _)
-      }).reduce(_ && _)
-    } else {
+    that match {
+      case Some(get) => {
+        (for (thisList <- this.typeList) yield {
+          (for (thatList <- get.typeList) yield thatList == thisList || thisList.isSubType(thatList)).reduce(_ || _)}).reduce(_ && _)
+      }
+      case None => {
       // this.type
       (for (t <- this.typeList) yield scope.isList.exists(_.isSubType(t))).reduce(_ && _)
+      }
     }
   }
 
@@ -145,6 +158,10 @@ final case class TTypeBody(body: Map[ID,TBodyContent])(implicit val scope: Scope
 }
 
 final case class TMethodContent(mode: TMode, id:ID, combinedArgs: TCombinedArgs)(implicit val scope: Scope) extends Typer {
+
+  def args = combinedArgs.args
+  def formal = combinedArgs.formalArgs
+
   override def codegen(implicit indent: Int, context: CodeGenContext): String = throw new UnsupportedOperationException
 
   override def toString = s"TMethodContent(id = $id, mode = $mode, args = $combinedArgs)"

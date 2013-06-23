@@ -29,7 +29,7 @@ object Main extends App {
     config => {
       if (config.version) version()
       else if (config.help) help()
-      else compile(config.input, config.output, config.stage)
+      else compile(config.input, config.output, config.stage, config.implicitSender)
     }
   } getOrElse parser.showUsage
 
@@ -41,9 +41,9 @@ object Main extends App {
     parser.showUsage
   }
 
-  def compile(input: String, output: String, stage: Int) {
+  def compile(input: String, output: String, stage: Int, sender: Boolean) {
     val unit = try {
-      Loader.Loader.load(stage, input)
+      Loader.Loader.load(stage, input, sender)
     } catch {
       case e: IOException => {println("Starting directory " + input + " not found"); sys.exit(1)}
     }

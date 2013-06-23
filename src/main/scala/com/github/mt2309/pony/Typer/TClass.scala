@@ -17,6 +17,9 @@ sealed abstract class TModuleMember(implicit val scope: Scope) extends Typer {
 }
 
 final case class EmptyType(override val name: TypeId)(implicit override val scope: Scope) extends TModuleMember with TTypeElement {
+
+  override def mode: TMode = new TReadOnly()(pScope)
+
   override def isSubType(that: TTypeElement) = this == that
 
   override def methods = Map.empty
@@ -32,6 +35,9 @@ final case class EmptyType(override val name: TypeId)(implicit override val scop
 
 final case class TPrimitive(name: TypeId, cTypename: String,  override val defaultConstructor: String)
                            (implicit override val scope: Scope) extends TModuleMember with TTypeElement {
+
+
+  override def mode: TMode = new TImmutable()(pScope)
 
   override def isSubType(that: TTypeElement): Boolean = that match {
     case TPrimitive(pName, _ , _) => pName == name
@@ -84,7 +90,7 @@ abstract class PonyClass(implicit override val scope: Scope) extends TModuleMemb
   def is: TIs
   def typeBody: TTypeBody
 
-  override def isSubType(that: TTypeElement): Boolean = ???
+  override def isSubType(that: TTypeElement): Boolean = is.isSubType(that)
 
   override def methods = {
     val methods = typeBody.body.filterNot(b => b._2.isInstanceOf[TField] || b._2.isInstanceOf[TField])
@@ -126,7 +132,7 @@ abstract class ConcreteClass(implicit override val scope: Scope) extends PonyCla
   }
 
   override def codegen(implicit indent: Int, context: CodeGenContext): String = {
-    val b = new StringBuilder(s"pony_clazz * ${name}_construct(void)\n{\n")
+    val b = new StringBuilder(s"pony_clazz * ${name}_init(void)\n{\n")
 
     b.appendln("pony_clazz * clazz = malloc(sizeof(pony_clazz));")
 
@@ -221,6 +227,7 @@ final case class TTrait (name: TypeId, formalArgs: FormalParams, is:TIs, typeBod
 }
 
 sealed trait TTypeElement extends Typer {
+  def mode: TMode
   def isSubType(that: TTypeElement): Boolean
   def name: String
   def defaultConstructor: String
@@ -228,12 +235,17 @@ sealed trait TTypeElement extends Typer {
 }
 
 final case class TPartialType(typeclass: TTypeClass)(implicit val scope: Scope) extends TTypeElement {
-  def isSubType(that: TTypeElement): Boolean = that match {
-    case t:TPrimitive => false
-    case t:TPartialType => this.typeclass.isSubType(t.typeclass)
-    case t:TTypeClass => this.typeclass.isSubType(t)
-    case t:TLambda => false
-    case t:EmptyType => false
+
+  def mode: TMode = typeclass.mode
+
+  def isSubType(that: TTypeElement): Boolean = {
+    that match {
+      case t:TPrimitive => false
+      case t:TPartialType => this.typeclass.isSubType(t.typeclass)
+      case t:TTypeClass => this.typeclass.isSubType(t)
+      case t:TLambda => false
+      case t:EmptyType => false
+    }
   }
 
   def defaultConstructor = typeclass.defaultConstructor
@@ -244,23 +256,27 @@ final case class TPartialType(typeclass: TTypeClass)(implicit val scope: Scope) 
 }
 
 final case class TTypeClass(moduleMember: TModuleMember, mode: TMode = new TReadOnly()(pScope), formalArgs: TFormalArgs = List.empty)(implicit val scope: Scope) extends TTypeElement {
-  def isSubType(that: TTypeElement): Boolean = that match {
-    case TPrimitive(name, _, _) => name == moduleMember.name
-    case t:TPartialType => this.moduleMember.isSubType(t.typeclass)
-    case t:TTypeClass => this.moduleMember.isSubType(t)
-    case t:TLambda => false
-    case t:EmptyType => false
+  def isSubType(that: TTypeElement): Boolean = {
+    that match {
+      case TPrimitive(pName, _, _) => pName == name
+      case t:TPartialType => this.moduleMember.isSubType(t.typeclass)
+      case t:TTypeClass => {
+        (this.name == t.name || this.moduleMember.isSubType(t)) && mode.isSubType(t.mode)
+      }
+      case t:TLambda => false
+      case t:EmptyType => false
+    }
   }
 
   def variables: Map[ID, Option[TOfType]] = moduleMember.variables
 
   def methods: Map[ID, TBodyContent] = moduleMember.methods
 
-  override def toString = moduleMember.name
+  override def toString = s"TTypeClass(name = $name, mode = $mode, formal = $formalArgs)"
 
   override def name = moduleMember.name
 
-  override def defaultConstructor = s"${moduleMember.name}_construct()"
+  override def defaultConstructor = s"${moduleMember.name}_init()"
 }
 
 final case class TLambda(mode: TMode, args: TArgs, result: TParams, throws: Boolean, block: Option[TBlock])(implicit val scope: Scope) extends TTypeElement {

@@ -2,6 +2,7 @@ package com.github.mt2309.pony.Loader
 
 import com.github.mt2309.pony.CompilationUnit.CompilationUnit
 import java.io.{IOException, File}
+import com.github.mt2309.pony.Typer
 
 /**
  * User: mthorpe
@@ -14,7 +15,9 @@ object Loader {
 
   var stage: Int = 3
 
-  def load(s: Int, path: String): CompilationUnit = {
+  def load(s: Int, path: String, sender: Boolean): CompilationUnit = {
+
+    Typer.implicitSender = sender
 
     stage = s
 

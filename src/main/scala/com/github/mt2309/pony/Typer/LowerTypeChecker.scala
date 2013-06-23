@@ -101,7 +101,7 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
   private def checkIs(is: Is)(implicit scope: Scope): TIs = {
     val cached = typeCache.lookupIs(is)
 
-    val res = cached.getOrElse(new TIs(is.list.map(checkTypeClass(_).asInstanceOf[TTypeClass])).setPos(is.pos))
+    val res = cached.getOrElse(new TIs(is.list.map(checkTypeClass(_).asInstanceOf[TTypeClass]) ++ ImplicitTraits.allTraits).setPos(is.pos))
     typeCache.updateIs(is, res)
 
     res
@@ -393,7 +393,12 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
         fun -> newScope
       }
       case Message(contents, block) => {
-        val con = checkContents(contents)
+        val sc = if (implicitSender) {
+          scope.updateScope("sender", of = Some(new TOfType(ImplicitTraits.actorTraits.toSet)))
+        } else {
+          scope
+        }
+        val con = checkContents(contents)(sc)
         new TMessage(con._1, block.map(checkBlock(_)(con._2))) -> scope
       }
     }

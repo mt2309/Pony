@@ -11,6 +11,19 @@ import com.github.mt2309.pony.CodeGen.CodeGenContext
  */
 private object TyperHelper {
 
+  def subType(left: Option[TOfType], that: Option[TOfType]): Boolean = left match {
+    case Some(of) => of.isSubType(that)
+    case None => that match {
+      case Some(ofThat) => ???
+      case None => true
+    }
+  }
+
+  def sendable(opt: Option[TOfType]): Boolean = opt match {
+    case Some(of) => of.isSendable
+    case None => false // can we send "this" to another actor?
+  }
+
   def extractFrom(atom: TAtom)(implicit scope: Scope, context: CodeGenContext): String = atom match {
     case TPonyInt(i) => throw new UnsupportedOperationException
     case t: TBoolean => throw new UnsupportedOperationException

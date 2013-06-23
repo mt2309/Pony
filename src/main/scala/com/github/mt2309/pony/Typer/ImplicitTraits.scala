@@ -20,15 +20,19 @@ private object ImplicitTraits {
     new TTypeBody(Map("mirror" -> new TFunction(
       new TMethodContent(new TReadOnly, "mirror", new TCombinedArgs(List.empty, List.empty)), List(new TParam("mirror", None)), false, Some(new TBlock(List.empty, None, None))))))
 
+  val Construct: TTrait = new TTrait("Construct", List.empty, new TIs(List.empty),
+    new TTypeBody(Map("construct" -> new TConstructor(
+      new TMethodContent(new TReadOnly, "construct", new TCombinedArgs(List.empty, List.empty)), false, Some(new TBlock(List.empty, None, None))))))
 
-  val allTraits: List[TTypeClass] = List(Hashable, Partial).map(new TTypeClass(_))
+
+  val allTraits: List[TTypeClass] = List(Hashable, Partial, Construct).map(new TTypeClass(_))
   val actorTraits = new TTypeClass(Actor) :: allTraits
 
   val PonyObject: TTrait = new TTrait("PonyObject", List.empty, new TIs(allTraits), new TTypeBody(Map.empty))
 
   val tPO = new TTypeClass(PonyObject)
 
-  val implicitTraits: TypeScope = Set(PonyObject, Hashable, Partial).map(t => t.name -> t).toMap
+  val implicitTraits: TypeScope = Set(PonyObject, Hashable, Partial, Construct).map(t => t.name -> t).toMap
 
   val tArray: TObject = new TObject("Array", List("K"), new TIs(List(tPO)), new TTypeBody(Map.empty))
 
