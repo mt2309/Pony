@@ -9,9 +9,25 @@ import com.github.mt2309.pony.CodeGen.CodeGenContext
  * Date: 11/06/2013
  * Time: 03:38
  */
-object TyperHelper {
+private object TyperHelper {
 
-  def extractFrom(opt: Option[TOfType]): String = "->" ++ structName(opt)
+  def extractFrom(atom: TAtom)(implicit scope: Scope, context: CodeGenContext): String = atom match {
+    case TPonyInt(i) => throw new UnsupportedOperationException
+    case t: TBoolean => throw new UnsupportedOperationException
+    case TPonyDouble(d) => throw new UnsupportedOperationException
+    case TPonyString(str) => throw new UnsupportedOperationException
+    case TPonyID(id) => {
+      scope.findID(id) match {
+        case Some(found) => found match {
+          case v: Var => ""
+          case m: Meth => scope.searchMethod(id).cResult
+        }
+        case None => ""
+      }
+    }
+    case TPonyTypeId(id) => throw new UnsupportedOperationException
+    case t: TThis => throw new UnsupportedOperationException
+  }
 
   def typeToClass(opt: Option[TOfType]): String = opt match {
     case Some(x) => {
@@ -61,6 +77,10 @@ object TyperHelper {
     }
 
     case None => "create_clazz_var"
+  }
+
+  def createVariable(expr: TExpr): String = {
+    createVariable(expr.ofType(expr.scope))
   }
 
 

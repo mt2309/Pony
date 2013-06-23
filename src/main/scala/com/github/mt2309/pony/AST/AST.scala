@@ -97,7 +97,7 @@ final case class VarDec(id: ID, ofType: Option[OfType], assign: Option[Expr]) ex
 final case class Match(list: List[Expr], cases: List[CaseBlock]) extends BlockContent with AST
 final case class DoLoop(block: Block, whileExpr: Expr) extends BlockContent with AST
 final case class WhileLoop(whileExpr: Expr, block: Block) extends BlockContent with AST
-final case class ForLoop(forVars: List[ForVar], inExpr: Expr, block: Block) extends BlockContent with AST
+final case class ForLoop(forVars: List[ForVar], range:(Expr, Expr), block: Block) extends BlockContent with AST
 final case class Conditional(conditionalList: List[(Expr, Block)], elseBlock: Option[Block]) extends BlockContent with AST
 final case class Assignment(lValues: List[LValue], expr: Option[Expr]) extends BlockContent with AST
 

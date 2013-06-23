@@ -244,9 +244,9 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
       new TDoLoop(checkBlock(block), checkBooleanExpr(whileExpr)).setPos(b.pos) -> scope
     }
     case WhileLoop(whileExpr, block) => new TWhileLoop(checkBooleanExpr(whileExpr), checkBlock(block)).setPos(b.pos) -> scope
-    case ForLoop(forVars, inExpr, block) => {
+    case ForLoop(forVars, range, block) => {
       val fV = checkList(forVars, checkForVar)
-      new TForLoop(fV._1, checkExpression(inExpr), checkBlock(block)(fV._2)).setPos(b.pos) -> scope
+      new TForLoop(fV._1, checkExpression(range._1) -> checkExpression(range._2), checkBlock(block)(fV._2)).setPos(b.pos) -> scope
     }
     case Conditional(condList, elseBlock) => {
       new TConditional(condList.map(t => checkBooleanExpr(t._1) -> checkBlock(t._2)), elseBlock.map(checkBlock)).setPos(b.pos) -> scope

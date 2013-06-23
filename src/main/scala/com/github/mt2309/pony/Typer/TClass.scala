@@ -169,9 +169,11 @@ abstract class ConcreteClass(implicit override val scope: Scope) extends PonyCla
 final case class TActor (name: TypeId, formalArgs: FormalParams, is:TIs, typeBody: TTypeBody)(implicit override val scope: Scope) extends ConcreteClass {
   override def toString = s"TActor(name = $name, formal = $formalArgs, is = $is, typebody = $typeBody)"
 }
+
 final case class TObject(name: TypeId, formalArgs: FormalParams, is:TIs, typeBody: TTypeBody)(implicit override val scope: Scope) extends ConcreteClass {
   override def toString = s"TObject(name = $name, formal = $formalArgs, is = $is, typebody = $typeBody)"
 }
+
 final case class TTrait (name: TypeId, formalArgs: FormalParams, is:TIs, typeBody: TTypeBody)(implicit override val scope: Scope) extends PonyClass {
   override def variables = Map.empty
   override def codegen(implicit indent: Int, context: CodeGenContext): String = throw new UnsupportedOperationException
@@ -200,6 +202,7 @@ final case class TPartialType(typeclass: TTypeClass)(implicit val scope: Scope) 
 
   override def toString = "partial " ++ typeclass.moduleMember.name
 }
+
 final case class TTypeClass(moduleMember: TModuleMember, mode: TMode = new TReadOnly()(pScope), formalArgs: TFormalArgs = List.empty)(implicit val scope: Scope) extends TTypeElement {
   def isSubType(that: TTypeElement): Boolean = that match {
     case TPrimitive(name, _, _) => name == moduleMember.name

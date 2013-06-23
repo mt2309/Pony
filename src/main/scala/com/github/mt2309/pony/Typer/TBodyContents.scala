@@ -14,6 +14,7 @@ sealed abstract class TBodyContent(val name: ID, val isAbstract: Boolean = false
   def mangle: String
   override def codegen(implicit indent: Int, context: CodeGenContext): String
   def header(current: ConcreteClass): String
+  def cResult: String
 }
 
 final case class TField(id: ID, ofType: Option[TOfType], expr: Option[TExpr])(implicit override val scope: Scope) extends TBodyContent(id, expr.isEmpty) {
@@ -33,6 +34,8 @@ final case class TField(id: ID, ofType: Option[TOfType], expr: Option[TExpr])(im
   override def header(current: ConcreteClass): String = ???
 
   override def toString = s"TField(id = $id, ofType = $ofType)"
+
+  override def cResult: String = ""
 }
 
 final case class TDelegate(id: ID, ofType: Option[TOfType])(implicit override val scope: Scope) extends TBodyContent(name = id) {
@@ -52,6 +55,8 @@ final case class TDelegate(id: ID, ofType: Option[TOfType])(implicit override va
   override def header(current: ConcreteClass): String = ???
 
   override def toString = s"TDelegate(id = $id, ofType = $ofType)"
+
+  override def cResult: String = ""
 }
 
 final case class TConstructor(contents: TMethodContent, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty) {
@@ -88,6 +93,8 @@ final case class TConstructor(contents: TMethodContent, throws: Boolean, block: 
   }
 
   override def toString = s"TConstructor(contents = $contents, throws = $throws, block = $block)"
+
+  override def cResult: String = ""
 }
 
 final case class TAmbient(contents: TMethodContent, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty) {
@@ -105,6 +112,8 @@ final case class TAmbient(contents: TMethodContent, throws: Boolean, block: Opti
   override def codegen(implicit indent: Int, context: CodeGenContext): String = block.getOrElse(throw new AbstractMethodNotImplemented("")(this.pos)).codegen(1, context)
 
   override def toString = s"TAmbient(contents = $contents, throws = $throws, block = $block)"
+
+  override def cResult: String = ""
 }
 
 final case class TFunction(contents: TMethodContent, results: TParams, throws: Boolean, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty) {
@@ -143,6 +152,11 @@ final case class TFunction(contents: TMethodContent, results: TParams, throws: B
     b.append("\n")
     b.appendln("return_label:")
     b.appendln("cleanup:")
+
+    for (variable <- context.variables) {
+      b.appendln(s"set_value(this, ${TyperHelper.createVariable(variable._2)}(${variable._1}), ${variable._1.hashCode.abs});")
+    }
+
     b.appendTo(s"return create_args(${results.length}")
 
     for (result <- results) {
@@ -157,6 +171,15 @@ final case class TFunction(contents: TMethodContent, results: TParams, throws: B
   }
 
   override def toString = s"TFunction(contents = $contents, results = $results, throws = $throws, block = $block)"
+
+  override def cResult: String = {
+    if (results.isEmpty) {
+      ""
+    }
+    else {
+      "[0]->" ++ TyperHelper.structName(results.head.ofType)
+    }
+  }
 }
 
 final case class TMessage(contents: TMethodContent, block: Option[TBlock])(implicit override val scope: Scope) extends TBodyContent(contents.id, block.isEmpty) {
@@ -188,6 +211,10 @@ final case class TMessage(contents: TMethodContent, block: Option[TBlock])(impli
     b.appendln("return_label:")
     b.appendln("cleanup:")
 
+    for (variable <- context.variables) {
+      b.appendln(s"set_value(this, ${TyperHelper.createVariable(variable._2)}(${variable._1}), ${variable._1.hashCode.abs});")
+    }
+
     b.appendln("return NULL;")
 
     b.append("}\n\n")
@@ -196,4 +223,6 @@ final case class TMessage(contents: TMethodContent, block: Option[TBlock])(impli
   }
 
   override def toString = s"TMessage(contents = $contents, block = $block)"
+
+  override def cResult: String = ""
 }

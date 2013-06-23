@@ -11,7 +11,7 @@ object PonyParser {
   def parse(file: (Filename, FileContents)): Option[Module] = new PonyParser(file._2)(file._1).parse
 }
 
-final class PonyParser(val contents: FileContents)(implicit val filename: Filename) extends ParserUtilities {
+private final class PonyParser(val contents: FileContents)(implicit val filename: Filename) extends ParserUtilities {
 
   def parse: Option[Module] = {
     parseAll(module, contents) match {
@@ -228,8 +228,10 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
     "while" ~> bracketedExpr ~ block ^^ {s => new WhileLoop(s._1, s._2)}
   }
   private def forLoop: Parser[BlockContent] = positioned {
-    "for" ~> parserList(forVar, ",") ~ ("in" ~> expr ~ block) ^^ {s => new ForLoop(s._1, s._2._1, s._2._2)}
+    "for" ~> parserList(forVar, ",") ~ ("in" ~> to ~ block) ^^ {s => new ForLoop(s._1, s._2._1, s._2._2)}
   }
+
+  private def to: Parser[(Expr, Expr)] = "(" ~> expr ~ "to" ~ expr <~ ")" ^^ {s => (s._1._1,s._2)}
 
   private def caseBlock: Parser[CaseBlock] = positioned {
     "case" ~> (caseSubBlock?) ~ block ^^ {s => new CaseBlock(s._1, s._2)}
@@ -254,7 +256,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   }
 
   // Something about this seems off, might cause problems with conditionals
-  private def conditional: Parser[BlockContent] = positioned{
+  private def conditional: Parser[BlockContent] = positioned {
     "if" ~> bracketedExpr ~ block ~ (("else if" ~> bracketedExpr ~ block)*) ~ (("else" ~> block)?) ^^ {
       s => new Conditional(s._1._1._1 -> s._1._1._2 :: s._1._2.map(x => x._1 -> x._2), s._2)
     }
@@ -352,8 +354,9 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
 
   // Atoms
   private def atom: Parser[Atom] = positioned {
-    thisParse | trueParse | falseParse | intParse | floatParse | stringParse | idParse | typeIdParse
+    thisParse | trueParse | falseParse | floatParse |intParse | stringParse | idParse | typeIdParse
   }
+
   private def thisParse: Parser[Atom] = "this" ^^ {s => This}
   private def trueParse: Parser[Atom] = "true" ^^ {s => True}
   private def falseParse: Parser[Atom] = "false" ^^ {s => False}
@@ -378,7 +381,7 @@ final class PonyParser(val contents: FileContents)(implicit val filename: Filena
   private def typeId: Parser[TypeId] = """[A-Z][a-zA-Z_0-9]*""".r ^^ {new TypeId(_)}
   private def string: Parser[String] = ("\""+"""([^"\p{Cntrl}\\]|\\[\\'"bfnrt]|\\u[a-fA-F0-9]{4})*"""+"\"").r
   private def int: Parser[Int] = """-?\d+""".r ^^ { _.toInt }
-  private def double: Parser[Double] = """-?(\d+(\.\d*)?|\d*\.\d+)([eE][+-]?\d+)?[fFdD]?""".r ^^ {_.toDouble}
+  private def double: Parser[Double] = """-?(\d+(\.\d*)?|\d*\.\d+)([eE][+-]?\d+)?[fFdD]""".r ^^ {_.toDouble}
   private def id: Parser[ID] = """[a-z][a-zA-Z_0-9]*""".r ^^ {new ID(_)}
 
   // Helper

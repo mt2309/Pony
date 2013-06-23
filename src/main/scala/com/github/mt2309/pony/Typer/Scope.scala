@@ -69,6 +69,8 @@ final case class Scope(typeScope: TypeScope = initialScope,
     this.copy(currentClass = currentClass.copy(currentClass = optClazz, isStatic = optClazz.exists(_.isStatic)))
   }
 
+  def searchMethod(id: ID): TBodyContent = methScope(id)
+
   def search(tClass: TypeClass): TModuleMember = {
     val p: Option[TModuleMember] = tPrimitiveTypes.find(_.name == tClass.name)
     val i: Option[TModuleMember] = if (p.isDefined) p else imports.searchType(tClass)

@@ -5,7 +5,7 @@ package com.github.mt2309.pony.Typer
  * Date: 09/06/2013
  * Time: 23:34
  */
-object ImplicitTraits {
+private object ImplicitTraits {
 
   implicit val scope = pScope
   implicit val filename = "Implicit trait"

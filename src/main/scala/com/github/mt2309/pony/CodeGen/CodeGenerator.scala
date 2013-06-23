@@ -19,7 +19,7 @@ final case class CodeGenContext(currentClazz: ConcreteClass, workingID: ID, func
 
 final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: String) {
 
-  val modules: IndexedSeq[TypedModule] = units.map(_.typeIt).flatten
+  private val modules: IndexedSeq[TypedModule] = units.map(_.typeIt).flatten
 
   def codeGen(): Unit = {
     val classes: IndexedSeq[(TypeId, TModuleMember, Int)] = (modules.map(_.classes).flatten ++ tPrimitiveTypes.map(t => t.name -> t)).zipWithIndex.map(t => (t._1._1, t._1._2, t._2))
@@ -27,25 +27,26 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
     val intArraySize = classes.size / 64 + 1
 
     val headerBuilder = new StringBuilder(CodeGenerator.headerString)
-    val sourceBuilder = new StringBuilder(CodeGenerator.sourceString)
+    val initBuilder = new StringBuilder(CodeGenerator.sourceString)
 
-    sourceBuilder.append(s"\n\nvoid initialise(void)\n{\n  clazz_set_size = $intArraySize;\n")
+    initBuilder.append(s"\n\nvoid initialise(int argc, char const *argv[])\n{\n  clazz_set_size = $intArraySize;\n")
 
     // Generate the header
     for (clazz <- classes) {
       headerBuilder.append(s"unsigned int * ${clazz._1}_id;\n")
-      sourceBuilder.appendln(s"${clazz._1}_id = initialise_bit_set(${clazz._3});")(1)
+      initBuilder.appendln(s"${clazz._1}_id = initialise_bit_set(${clazz._3});")(1)
 
       if (clazz._2.isInstanceOf[ConcreteClass]) {
-        sourceBuilder.appendln(s"static_${clazz._1} = create_static_${clazz._1}();")(1)
+        initBuilder.appendln(s"static_${clazz._1} = create_static_${clazz._1}();")(1)
       }
       else {
-        sourceBuilder.appendln("")(1)
+        initBuilder.appendln("")(1)
       }
     }
 
     headerBuilder.append("\n")
-    sourceBuilder.append("}\n\n")
+
+    val sourceBuilder = new StringBuilder
 
     for (clazz <- classes) {
       clazz._2 match {
@@ -59,6 +60,9 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
 
           for (body <- conc.methods) {
             headerBuilder.appendln(body._2.header(conc))(0)
+            if (body._1 == "main") {
+              initBuilder.appendln(s"${conc.name}_${body._1}(NULL, create_args(1, create_int_var(atoi(argv[1]))));")(1)
+            }
             sourceBuilder.append(body._2.codegen(1, context.copy(functionName = Some(body._1))))
           }
         }
@@ -67,11 +71,13 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
     }
 
     headerBuilder.append("#endif")
+    initBuilder.append("}\n\n")
 
     val header = new PrintWriter(output ++ "/pony_class_ids.h", "UTF-8")
     val source = new PrintWriter(output ++ "/pony_class_ids.c", "UTF-8")
 
     header.println(headerBuilder.mkString)
+    source.println(initBuilder.mkString)
     source.println(sourceBuilder.mkString)
 
     header.close()
@@ -80,12 +86,15 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
 
 }
 
-object CodeGenerator {
+private object CodeGenerator {
 
-  val headerString = {
-    "#include <stdlib.h>\n#include <stdio.h>\n#include <stdbool.h>\n\n" ++
-      "#include \"pony_class.h\"\n\n#ifndef PONY_PROGRAM_H\n#define PONY_PROGRAM_H\n\nvoid initialise(void);\nunsigned int clazz_set_size;\n\n"
+  val headerString: String = {
+    val b = new StringBuilder
+    b.append("#include <stdlib.h>\n#include <stdio.h>\n#include <stdbool.h>\n\n")
+    b.append("#include \"pony_class.h\"\n\n#ifndef PONY_PROGRAM_H\n#define PONY_PROGRAM_H\n\nvoid initialise(int argc, char const *argv[]);\nunsigned int clazz_set_size;\n\n")
+
+    b.mkString
   }
 
-  val sourceString = "#include \"pony_class_ids.h\"\n\n"
+  val sourceString: String = "#include \"pony_class_ids.h\"\n\n"
 }

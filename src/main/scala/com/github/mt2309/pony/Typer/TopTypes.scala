@@ -8,7 +8,7 @@ import com.github.mt2309.pony.Common._
  * Date: 30/04/2013
  * Time: 00:48
  */
-final class TopTypes(val modules: Set[(Filename, Option[Module])]) extends TypeChecker {
+final class TopTypes(val modules: Set[(Filename, Option[Module])]) {
 
   private val moduleScope: Map[TypeId, ModuleMember] = modules.map(_._2.map(_.classes)).flatten.flatten.toMap ++ primMap
 

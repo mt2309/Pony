@@ -26,7 +26,7 @@ final class TNative(implicit val scope: Scope) extends TBlockContent {
   override def codegen(implicit indent: Int, context: CodeGenContext): String = {
     val b = new StringBuilder
 
-    b.appendln("printf(\"%s\", (char*)x);")
+    b.appendln("printf(\"%f\\n\", x);")
 
     b.mkString
   }
@@ -58,12 +58,7 @@ final case class TVarDec(id: ID, ofType: Option[TOfType], expr: Option[TExpr])(i
 
     val e = expr.get
 
-    if (e.isSimple) {
-      b.appendln(s"${TyperHelper.typeToClass(ofType)} $id = (${e.codegen});")
-    }
-    else {
-      b.appendln(s"${TyperHelper.typeToClass(ofType)} $id = (${e.codegen})->${TyperHelper.structName(ofType)};")
-    }
+    b.appendTo(s"${TyperHelper.typeToClass(ofType)} $id = ${e.codegen}")
 
     b.mkString
   }
@@ -103,19 +98,19 @@ final case class TWhileLoop(whileExpr: TExpr, block: TBlock)(implicit val scope:
   override def toString = s"WhileLoop(whileExpr = $whileExpr, block = $block)"
 }
 
-final case class TForLoop(forVars: List[TForVar], inExpr: TExpr, block: TBlock)(implicit val scope: Scope) extends TBlockContent {
+final case class TForLoop(forVars: List[TForVar], range: (TExpr, TExpr), block: TBlock)(implicit val scope: Scope) extends TBlockContent {
   override def codegen(implicit indent: Int, context: CodeGenContext): String = {
     val b = new StringBuilder
 
     val head = forVars.head
 
-    b.appendln(s"for (${TyperHelper.typeToClass(head.ofType)} ${head.id} = ${TyperHelper.typeToConstructor(head.ofType)}; ${head.id} == ${inExpr.tail}; ${head.id}++)")
+    b.appendln(s"for (${TyperHelper.typeToClass(head.ofType)} ${head.id} = ${range._1.codegen}; ${head.id} < ${range._2.codegen}; ${head.id}++)")
     b.append(block.codegen(indent + 1, context))
 
     b.mkString
   }
 
-  override def toString = s"TForLoop(forVars = $forVars, in = $inExpr, block = $block)"
+  override def toString = s"TForLoop(forVars = $forVars, in = $range, block = $block)"
 }
 
 final case class TConditional(conditionalList: List[(TExpr, TBlock)], elseBlock: Option[TBlock])(implicit val scope: Scope) extends TBlockContent {
@@ -155,9 +150,10 @@ final case class TAssignment(lValues: List[TLValue], expr: Option[TExpr])(implic
         }
         b.append("")
       }
-    } else {
+    }
+    else {
       for (lVal <- lValues) {
-        b.append(lVal.codegen ++ ");")
+        b.append(lVal.codegen ++ ";\n")
       }
     }
 

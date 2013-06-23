@@ -11,6 +11,7 @@ import com.github.mt2309.pony.CodeGen.CodeGenContext
 sealed abstract class TFirstCommand extends Typer {
   def extractOfType: Option[TOfType]
   def tail(implicit indent: Int, context: CodeGenContext): String
+  override def codegen(implicit indent: Int, context: CodeGenContext): String
   def isSimple: Boolean
 }
 
@@ -39,6 +40,7 @@ final case class TCommandArgs(args: List[TArg])(implicit val scope: Scope) exten
 }
 
 sealed abstract class TAtom extends TFirstCommand with Typer {
+  override def codegen(implicit indent: Int, context: CodeGenContext): String
   override def tail(implicit indent: Int, context: CodeGenContext): String = codegen
   override def isSimple: Boolean
 }
@@ -53,7 +55,9 @@ final class TThis(implicit val scope: Scope) extends TAtom {
   override def toString = "TThis"
 }
 
-final class TTrue(implicit val scope: Scope) extends TAtom {
+sealed abstract class TBoolean extends TAtom
+
+final class TTrue(implicit val scope: Scope) extends TBoolean {
   override def extractOfType = Some(boolOfType)
 
   override def codegen(implicit indent: Int, context: CodeGenContext): String = "true"
@@ -63,7 +67,7 @@ final class TTrue(implicit val scope: Scope) extends TAtom {
   override def toString = "TTrue"
 }
 
-final class  TFalse(implicit val scope: Scope) extends TAtom {
+final class  TFalse(implicit val scope: Scope) extends TBoolean {
   override def extractOfType = Some(boolOfType)
 
   override def codegen(implicit indent: Int, context: CodeGenContext): String = "false"
@@ -140,5 +144,5 @@ final case class TPonyTypeId(t: TypeId)(implicit val scope: Scope) extends TAtom
 
   override def isSimple: Boolean = false
 
-  override def codegen(implicit indent: Int, context: CodeGenContext): String = ""
+  override def codegen(implicit indent: Int, context: CodeGenContext): String = "NULL"
 }
