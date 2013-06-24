@@ -1,13 +1,13 @@
 object M {
-  function method(q:Int)->() {
+  function method(q: Int)->() {
     //does nothing
   }
 }
 
-object M1 {
+actor M1 {
 
-  function init()->() {
+  function main()->() {
     var x: M = M
-    x.method()
+    x.method(1)
   }
 }

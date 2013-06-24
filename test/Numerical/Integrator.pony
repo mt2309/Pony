@@ -40,7 +40,7 @@ actor Integrator {
 
 actor Main {
   message main(count: Int, iterations: Int) {
-    var acc: Accumulator = Accumulator.build(count)
+    var acc = Accumulator.build(count)
 
     for i:Int in (0 to count) {
       var in: Integrator = Integrator.build(iterations, count, acc)
