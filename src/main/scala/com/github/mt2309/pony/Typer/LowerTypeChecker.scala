@@ -67,12 +67,14 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
       case c:Actor => {
         val formalScope: Scope = checkFormalParams(c.f)
         val tIs = checkIs(c.i)(formalScope)
-        new TActor(  c.n, c.f, tIs, checkTypeBody(c.t)(formalScope)).setPos(m.pos)
+        val a = new TActor(  c.n, c.f, tIs, checkTypeBody(c.t)(formalScope)).setPos(m.pos)
+        a
       }
       case c:Object => {
         val formalScope: Scope = checkFormalParams(c.f)
         val tIs = checkIs(c.i)(formalScope)
-        new TObject(  c.n, c.f, tIs, checkTypeBody(c.t)(formalScope)).setPos(m.pos)
+        val o = new TObject(  c.n, c.f, tIs, checkTypeBody(c.t)(formalScope)).setPos(m.pos)
+        o
       }
       case c:Trait => {
 
@@ -346,11 +348,11 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
   }
 
   def checkVarDec(nVar: VarDec)(implicit scope: Scope): (TVarDec, Scope) = {
-    val of: Option[TOfType] = nVar.ofType.map(checkOf).getOrElse(throw new TyperInferenceException(nVar.pos, scope))
+    val n = if (nVar.assign.isDefined) { val e = checkExpression(nVar.assign.get)(scope); Some(e._1) -> e._2} else { None -> scope}
+    val of: Option[TOfType] = nVar.ofType.map(checkOf).getOrElse(n._1.get.ofType)
     val sc = scope.updateScope(nVar.id, of)(nVar.pos)
-    val n = if (nVar.assign.isDefined) { val e = checkExpression(nVar.assign.get)(sc); Some(e._1) -> e._2} else { None -> sc}
 
-    new TVarDec(nVar.id, of, n._1)(sc) -> n._2
+    new TVarDec(nVar.id, of, n._1)(sc) -> sc
   }
 
   def checkBooleanExpr(expr: Expr)(implicit scope: Scope): (TExpr, Scope) = {

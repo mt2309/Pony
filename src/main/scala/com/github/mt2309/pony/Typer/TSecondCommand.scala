@@ -45,7 +45,6 @@ final case class TCommandCall(id: TBodyContent, formalArgs: TFormalArgs, args: T
     case v: TMethod => {
       if (v.formalArgs.length == formalArgs.length) {
         val zipArgs: List[(TParam, TArg)] = v.args.zip(args)
-
         for (arg <- zipArgs) {
           if (!TyperHelper.subType(arg._2.expr.get.ofType, arg._1.ofType)) {
             throw new TypeMismatch(arg._2.expr.get.ofType.toString, arg._1.ofType.toString)
@@ -62,6 +61,11 @@ final case class TCommandCall(id: TBodyContent, formalArgs: TFormalArgs, args: T
   override def extractOfType(fst: Option[TOfType]): Option[TOfType] = id.ofType
 
   override def codegen(implicit indent: Int, context: CodeGenContext): String = {
+
+    if (!context.mode.isSubType(id.mode)) {
+      throw new ModeMismatchException(context.mode, id.mode)
+    }
+
     val b = new StringBuilder
     val e = new StringBuilder
 

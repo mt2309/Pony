@@ -49,7 +49,6 @@ final case class Scope(typeScope: TypeScope = initialScope,
   def removeScope(id: ID)(implicit pos: Position): Scope = {
     if (varScope.contains(id) && TyperHelper.isUnique(varScope(id).ofType)) {
       println(s"Removing $id")
-      println(pos)
       varScope(id).inScope = Some(pos)
     }
 

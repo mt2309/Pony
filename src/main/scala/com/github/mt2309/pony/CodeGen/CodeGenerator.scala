@@ -12,7 +12,7 @@ import java.io.PrintWriter
  * Time: 16:43
  */
 
-final case class CodeGenContext(currentClazz: ConcreteClass, workingID: ID, functionName: Option[ID]) {
+final case class CodeGenContext(currentClazz: ConcreteClass, workingID: ID, functionName: Option[ID], mode: TMode = CodeGenerator.defaultMode) {
   def name: TypeId = currentClazz.name
   def variables: Map[ID, Option[TOfType]] = currentClazz.variables
 }
@@ -58,6 +58,8 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
           sourceBuilder.append(conc.initialiseStatic(1))
           sourceBuilder.append(conc.codegen(1, context))
 
+          new ModalPass(conc)(context)
+
           conc match {
             case actor: TActor =>
               headerBuilder.append(s"static void ${conc.name}_dispatch(actor_t*, void*, type_t*, uint64_t, arg_t);\n")
@@ -69,7 +71,6 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
             headerBuilder.appendln(body._2.header(conc))(0)
             if (body._1 == "main") {
               initBuilder.appendln(s"pony_start(argc, argv, pony_create(${conc.name}_dispatch, NULL));")(1)
-//              initBuilder.appendln(s"${conc.name}_${body._1}(NULL, create_args(2, create_int_var(atoi(argv[1])), create_int_var(atoi(argv[2]))));")(1)
             }
             sourceBuilder.append(body._2.codegen(1, context.copy(functionName = Some(body._1))))
           }
@@ -95,6 +96,8 @@ final class CodeGenerator(val units: IndexedSeq[CompilationUnit], val output: St
 }
 
 private object CodeGenerator {
+
+  val defaultMode: TMode = new TReadOnly()(pScope)
 
   val headerString: String = {
     val b = new StringBuilder

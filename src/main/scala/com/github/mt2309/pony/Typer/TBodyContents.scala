@@ -10,6 +10,7 @@ import com.github.mt2309.pony.CodeGen.CodeGenContext
  */
 
 sealed abstract class TBodyContent(implicit val scope: Scope) extends Typer {
+  def mode(implicit context: CodeGenContext): TMode
   def name: ID
   def isAbstract: Boolean
   def ofType: Option[TOfType]
@@ -25,12 +26,15 @@ sealed trait TMethod {
   def contents: TMethodContent
   def formalArgs: FormalParams = contents.combinedArgs.formalArgs
   def args: TParams = contents.combinedArgs.args
+  def block: Option[TBlock]
 }
 
 final case class TField(id: ID, ofType: Option[TOfType], expr: Option[TExpr])(implicit override val scope: Scope) extends TBodyContent with TInstanceVariable {
 
   override def name = id
   override def isAbstract = expr.isEmpty
+
+  override def mode(implicit context: CodeGenContext): TMode = TyperHelper.mode(ofType)
 
   override def mangle: String = {
     if (ofType.isDefined) {
@@ -59,6 +63,8 @@ final case class TDelegate(id: ID, ofType: Option[TOfType])(implicit override va
   override def name = id
   override def isAbstract = false
 
+  override def mode(implicit context: CodeGenContext): TMode = TyperHelper.mode(ofType)
+
   override def mangle: String = {
     if (ofType.isDefined) {
       if (ofType.get.size == 0)
@@ -86,6 +92,8 @@ final case class TConstructor(contents: TMethodContent, throws: Boolean, block: 
 
   override def name = contents.id
   override def isAbstract = block.isEmpty
+
+  override def mode(implicit context: CodeGenContext): TMode = contents.mode
 
   override def ofType: Option[TOfType] = None
 
@@ -142,6 +150,8 @@ final case class TAmbient(contents: TMethodContent, throws: Boolean, block: Opti
       s"${contents.id}_${ArgsHelper.mangle(contents.combinedArgs.args)}"
   }
 
+  override def mode(implicit context: CodeGenContext): TMode = contents.mode
+
   override def ofType: Option[TOfType] = None
 
   override def header(current: ConcreteClass): String = ???
@@ -159,6 +169,8 @@ final case class TFunction(isStatic: Boolean, contents: TMethodContent, results:
 
   override def name = contents.id
   override def isAbstract = block.isEmpty
+
+  override def mode(implicit context: CodeGenContext): TMode = contents.mode
 
   override def mangle: String = {
     if (contents.combinedArgs.args.size == 0)
@@ -193,7 +205,7 @@ final case class TFunction(isStatic: Boolean, contents: TMethodContent, results:
       }
     }
 
-    b.appendln(s"free_args(${contents.args.length}, args);")
+//    b.appendln(s"free_args(${contents.args.length}, args);")
 
     b.append(block.getOrElse(throw new AbstractMethodNotImplemented(s"${contents.id} in class ${scope.currentClass.name}")(this.pos)).codegen(indent + 1, context))
 
@@ -246,6 +258,8 @@ final case class TMessage(contents: TMethodContent, block: Option[TBlock])(impli
       System.err.println(s"Mode mismatch on message, required to be unique or immutable")
     }
   }
+
+  override def mode(implicit context: CodeGenContext): TMode = contents.mode
 
   override def name = contents.id
   override def isAbstract = block.isEmpty

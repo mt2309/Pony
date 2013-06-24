@@ -27,6 +27,8 @@ final case class TypedModule(imports:CompilationUnits, classes: Map[TypeId, TMod
 
 final case class TParam(name: ID, ofType: Option[TOfType])(implicit val scope: Scope) {
   override def toString = s"TParam(name = $name, ofType = $ofType)"
+
+  def mode(implicit context: CodeGenContext): TMode = TyperHelper.mode(ofType)
 }
 
 final case class TCombinedArgs(formalArgs: FormalParams, args: TParams)(implicit val scope: Scope) extends Typer {
@@ -74,6 +76,8 @@ final case class TOfType(typeList: Set[TTypeElement])(implicit val scope: Scope)
     else
       typeList.head.defaultConstructor ++ ";"
   }
+
+  def mode: TMode = typeList.head.mode
 
   def isUnique: Boolean = typeList.exists(_.mode.isInstanceOf[TUnique])
 
@@ -170,6 +174,8 @@ final case class TMethodContent(mode: TMode, id:ID, combinedArgs: TCombinedArgs)
 }
 
 final case class TExpr(unary: TUnary, operator: List[(Operator, TUnary)])(implicit val scope: Scope) extends Typer {
+
+  def id: Option[ID] = unary.id
 
   def tail(implicit indent: Int, context: CodeGenContext): String = unary.tail
 
@@ -298,6 +304,9 @@ final case class TLValueCommand(command: TCommand)(implicit override val scope: 
 }
 
 final case class TCommand(first: TFirstCommand, second: Option[TSecondCommand])(implicit val scope: Scope) extends Typer {
+
+  def id: Option[ID] = first.id
+
   val extractOfType: Option[TOfType] = first.extractOfType
 
   def isSimple: Boolean = {
@@ -314,7 +323,7 @@ final case class TCommand(first: TFirstCommand, second: Option[TSecondCommand])(
     first match {
       case TCommandExpr(expr) => second match {
         case Some(snd) => snd match {
-          case TCommandCall(body, formal, args) => { b.append(); ??? }
+          case TCommandCall(body, formal, args) => { b.append(""); ??? }
           case TSecondCommandArgs(args) => { b.append(""); ??? }
         }
         case None      => { b.append(expr.codegen) }
@@ -329,7 +338,7 @@ final case class TCommand(first: TFirstCommand, second: Option[TSecondCommand])(
       case t: TAtom           => second match {
         case Some(snd) => snd match {
           case tc: TCommandCall => {
-            b.append(tc.codegen(indent, context.copy(workingID = t.codegen)))
+            b.append(tc.codegen(indent, context.copy(workingID = t.codegen, mode = t.mode)))
           }
           case ts: TSecondCommandArgs => {
             b.append(t.codegen ++ "(" ++ ts.codegen ++ "))")

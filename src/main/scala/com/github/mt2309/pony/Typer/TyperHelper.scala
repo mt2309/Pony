@@ -16,6 +16,11 @@ private object TyperHelper {
     case None => false
   }
 
+  def mode(opt: Option[TOfType])(implicit context: CodeGenContext): TMode = opt match {
+    case Some(of) => of.mode
+    case None => context.mode
+  }
+
   def subType(left: Option[TOfType], that: Option[TOfType]): Boolean = left match {
     case Some(of) => of.isSubType(that)
     case None => that match {

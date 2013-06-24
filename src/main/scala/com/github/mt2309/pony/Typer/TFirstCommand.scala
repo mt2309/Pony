@@ -14,6 +14,7 @@ sealed abstract class TFirstCommand extends Typer {
   override def codegen(implicit indent: Int, context: CodeGenContext): String
   def isSimple: Boolean
   def removeUnique(sc: Scope): Scope
+  def id: Option[ID]
 }
 
 final case class TCommandExpr(expr: TExpr)(implicit val scope: Scope) extends TFirstCommand with Typer {
@@ -28,6 +29,8 @@ final case class TCommandExpr(expr: TExpr)(implicit val scope: Scope) extends TF
   override def toString = s"TCommandExpr(expr = $expr)"
 
   override def removeUnique(sc: Scope): Scope = sc
+
+  override def id: Option[ID] = expr.id
 }
 
 final case class TCommandArgs(args: List[TArg])(implicit val scope: Scope) extends TFirstCommand with Typer {
@@ -42,6 +45,8 @@ final case class TCommandArgs(args: List[TArg])(implicit val scope: Scope) exten
   override def toString = s"TCommandArgs(args = $args)"
 
   override def removeUnique(sc: Scope): Scope = sc
+
+  override def id: Option[ID] = None
 }
 
 sealed abstract class TAtom extends TFirstCommand with Typer {
@@ -49,6 +54,9 @@ sealed abstract class TAtom extends TFirstCommand with Typer {
   override def tail(implicit indent: Int, context: CodeGenContext): String = codegen
   override def isSimple: Boolean
   override def removeUnique(sc: Scope): Scope = sc
+  def mode(implicit context: CodeGenContext): TMode = context.mode
+
+  override def id: Option[ID] = None
 }
 
 final class TThis(implicit val scope: Scope) extends TAtom {
@@ -59,6 +67,8 @@ final class TThis(implicit val scope: Scope) extends TAtom {
   override def isSimple: Boolean = false
 
   override def toString = "TThis"
+
+  override def id: Option[ID] = Some("this")
 }
 
 sealed abstract class TBoolean extends TAtom
@@ -114,13 +124,14 @@ final case class TPonyString(s: String)(implicit val scope: Scope) extends TAtom
 }
 
 final case class TPonyID(i: ID)(implicit val scope: Scope) extends TAtom with Typer {
+  override def id: Option[ID] = Some(i)
+
   override def extractOfType = scope.searchID(i)(this.pos)
 
   override def codegen(implicit indent: Int, context: CodeGenContext): String = {
     scope.findID(i) match {
       case Some(found) => found match {
         case v:Var => {
-          println(v.inScope)
           if (v.inScope.isEmpty)
             i
           else if (v.inScope.get < pos)
@@ -143,6 +154,9 @@ final case class TPonyID(i: ID)(implicit val scope: Scope) extends TAtom with Ty
       case None => throw new VariableOutOfScope(i)
     }
   }
+
+  override def mode(implicit context: CodeGenContext): TMode = TyperHelper.mode(scope.searchID(i))
+
 
   override def removeUnique(sc: Scope): Scope = sc.removeScope(i)
 }

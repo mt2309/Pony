@@ -1,6 +1,8 @@
 package com.github.mt2309.pony.Typer
 
 import com.github.mt2309.pony.AST.UnaryOp
+import com.github.mt2309.pony.Common
+import Common._
 import com.github.mt2309.pony.CodeGen.CodeGenContext
 
 /**
@@ -9,6 +11,7 @@ import com.github.mt2309.pony.CodeGen.CodeGenContext
  * Time: 22:50
  */
 sealed abstract class TUnary(implicit val scope: Scope) extends Typer {
+  def id: Option[ID]
   def unaryOps: List[UnaryOp]
   def extractOfType: Option[TOfType]
   def isSimple: Boolean
@@ -17,6 +20,9 @@ sealed abstract class TUnary(implicit val scope: Scope) extends Typer {
 }
 
 final case class TUnaryCommand(unaryOps: List[UnaryOp], command: TCommand)(implicit override val scope: Scope) extends TUnary {
+
+  override def id = command.id
+
   override def extractOfType = command.extractOfType
 
   override def isSimple: Boolean = command.isSimple
@@ -38,6 +44,9 @@ final case class TUnaryCommand(unaryOps: List[UnaryOp], command: TCommand)(impli
 }
 
 final case class TUnaryLambda(unaryOps: List[UnaryOp], lambda: TLambda)(implicit override val scope: Scope) extends TUnary {
+
+  override def id = throw new UnsupportedOperationException
+
   lazy val extractOfType = Some(new TOfType(Set(lambda)))
 
   override def codegen(implicit indent: Int, context: CodeGenContext): String = ???

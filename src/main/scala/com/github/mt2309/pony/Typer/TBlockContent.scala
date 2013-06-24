@@ -8,11 +8,13 @@ import com.github.mt2309.pony.CodeGen.CodeGenContext
  * Date: 19/06/2013
  * Time: 23:07
  */
-trait TBlockContent extends Typer {
+sealed trait TBlockContent extends Typer {
   override def codegen(implicit indent: Int, context: CodeGenContext): String
 }
 
-final class TReturn(implicit val scope: Scope) extends TBlockContent {
+sealed trait AtomicContent
+
+final class TReturn(implicit val scope: Scope) extends TBlockContent with AtomicContent {
   override def codegen(implicit indent: Int, context: CodeGenContext): String = {
     " "*2*indent ++ "goto return_label;\n"
   }
@@ -22,7 +24,7 @@ final class TReturn(implicit val scope: Scope) extends TBlockContent {
 
 // Call out to a native (C) function
 // For now we're just going to use it to print stuff
-final class TNative(implicit val scope: Scope) extends TBlockContent {
+final class TNative(implicit val scope: Scope) extends TBlockContent with AtomicContent {
   override def codegen(implicit indent: Int, context: CodeGenContext): String = {
     val b = new StringBuilder
 
@@ -36,19 +38,19 @@ final class TNative(implicit val scope: Scope) extends TBlockContent {
   override def toString = "TNative"
 }
 
-final class TThrow(implicit val scope: Scope) extends TBlockContent {
+final class TThrow(implicit val scope: Scope) extends TBlockContent with AtomicContent {
   override def codegen(implicit indent: Int, context: CodeGenContext): String = " "*2*indent ++ "goto cleanup;\n"
 
   override def toString = "TThrow"
 }
 
-final class TBreak(implicit val scope: Scope) extends TBlockContent {
+final class TBreak(implicit val scope: Scope) extends TBlockContent with AtomicContent {
   override def codegen(implicit indent: Int, context: CodeGenContext): String = " "*2*indent ++ "break;\n"
 
   override def toString = "TBreak"
 }
 
-final class TContinue(implicit val scope: Scope) extends TBlockContent {
+final class TContinue(implicit val scope: Scope) extends TBlockContent with AtomicContent {
   override def codegen(implicit indent: Int, context: CodeGenContext): String = " "*2*indent ++ "continue;\n"
 
   override def toString = "TContinue"

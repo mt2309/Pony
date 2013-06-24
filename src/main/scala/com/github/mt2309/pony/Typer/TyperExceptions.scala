@@ -40,6 +40,7 @@ private final class ThisUsedOutsideClassException(implicit pos: Position, scope:
 private final class UntypedListException(msg: ID)(implicit pos: Position, scope: Scope) extends TyperException(s"Variable $msg has no type associated with it")
 
 private final class ArgumentMismatchException(b: TBodyContent)(implicit pos: Position, scope: Scope) extends TyperException(s"Argument length mismatch on body of name ${b.name}")
+private final class ModeMismatchException(c: TMode, call: TMode)(implicit pos: Position, scope: Scope) extends TyperException(s"To call this method, we need a $call reference, we have a $c")
 
 
 private final class TyperInferenceException(pos: Position, scope: Scope) extends TyperException("Type inference is not enabled or working yet, please annotate with types")(pos, scope)
