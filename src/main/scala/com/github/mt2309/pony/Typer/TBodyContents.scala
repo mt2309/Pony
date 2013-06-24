@@ -22,7 +22,7 @@ sealed abstract class TBodyContent(implicit val scope: Scope) extends Typer {
 }
 
 sealed trait TInstanceVariable
-sealed trait TMethod {
+sealed trait TMethod extends TBodyContent {
   def contents: TMethodContent
   def formalArgs: FormalParams = contents.combinedArgs.formalArgs
   def args: TParams = contents.combinedArgs.args

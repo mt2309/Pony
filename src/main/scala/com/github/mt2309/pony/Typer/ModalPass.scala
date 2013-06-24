@@ -61,30 +61,46 @@ final class ModalPass(conc: ConcreteClass)(implicit context: CodeGenContext) {
 
     m.block.map(passBlock)
 
-    process(localMap)
-  }
-
-  private def process(m: mutable.Map[ID, V]): Unit = for (elem <- m) {
-    val a: Unit = elem._2 match {
-      case i: Instance => i.mode match {
+    if (!process(localMap, m.name)) {
+      val dis: Unit = m.mode match {
         case r: TReadOnly => Unit
-        case m: TImmutable => if (!i.sent && !i.isPrimitive) println(s"Immutable variable ${elem._1} could be made readonly") else Unit
-        case m: TMutable => if (!i.read)   println(s"Mutable variable ${elem._1} could be made readonly") else Unit
-        case u: TUnique => {
-          Unit
-        }
-        case e: TModeExpr => Unit
-      }
-      case l: Local => l.mode match {
-        case r: TReadOnly => Unit
-        case i: TImmutable => if (!l.sent && !l.isPrimitive) println(s"Immutable variable ${elem._1} could be made readonly") else Unit
-        case m: TMutable => if (!l.read)   println(s"Mutable variable ${elem._1} could be made readonly") else Unit
-        case u: TUnique => {
-          Unit
-        }
+        case i: TImmutable => Unit
+        case i: TMutable => println(s"Method ${m.name} could be made readonly")
+        case u: TUnique => println(s"Method ${m.name} could be made readonly")
         case e: TModeExpr => Unit
       }
     }
+  }
+
+  private def process(m: mutable.Map[ID, V], name: ID): Boolean = {
+    var instance = false
+    for (elem <- m) {
+      val a: Unit = elem._2 match {
+        case i: Instance => {
+          instance |= i.written
+          i.mode match {
+            case r: TReadOnly => Unit
+            case m: TImmutable => if (!i.sent && !i.isPrimitive) println(s"Immutable variable ${elem._1} could be made readonly") else Unit
+            case m: TMutable => if (!i.read)   println(s"Mutable variable ${elem._1} could be made readonly") else Unit
+            case u: TUnique => {
+              Unit
+            }
+            case e: TModeExpr => Unit
+          }
+        }
+        case l: Local => l.mode match {
+          case r: TReadOnly => Unit
+          case i: TImmutable => if (!l.sent && !l.isPrimitive) println(s"Immutable variable ${elem._1} could be made readonly") else Unit
+          case m: TMutable => if (!l.read)   println(s"Mutable variable ${elem._1} could be made readonly") else Unit
+          case u: TUnique => {
+            Unit
+          }
+          case e: TModeExpr => Unit
+        }
+      }
+    }
+
+    instance
   }
 
   private def passBlock(b: TBlock)(implicit localMap: mutable.Map[ID, V]): Unit = for (cont <- b.contents) {

@@ -64,12 +64,12 @@ final case class Scope(typeScope: TypeScope = initialScope,
   }
 
   def updateScope(typeId: TypeId)(implicit pos: Position): Scope = {
-    if (typeScope.contains(typeId)) {
-      throw new TypeShadowingException(s"Type $typeId, shadows type defined at ${this.typeScope(typeId)}")(pos, this)
-    }
-    else {
+//    if (typeScope.contains(typeId)) {
+//      throw new TypeShadowingException(s"Type $typeId, shadows type defined at ${this.typeScope(typeId)}")(pos, this)
+//    }
+//    else {
       this.copy(typeScope = typeScope + (typeId -> new EmptyType(typeId)(this).setPos(pos)))
-    }
+//    }
   }
 
   def mergeScope(that: Scope): Scope = {

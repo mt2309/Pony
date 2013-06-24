@@ -70,20 +70,24 @@ final case class TCommandCall(id: TBodyContent, formalArgs: TFormalArgs, args: T
     val e = new StringBuilder
 
     id match {
-      case f: TFunction => b.append(s"${id.scope.currentClass.name}_${id.name}(${context.workingID}, create_args(${args.length}")
+      case f: TFunction => {
+        val cur = id.scope.currentClass.currentClass.getOrElse(new AST.Object(context.workingID,List.empty, new AST.Is(List.empty), new AST.TypeBody(Map.empty), false)(scope.filename))
+        b.append(s"${cur.typeName}_${id.name}(${context.workingID}, create_args(${args.length}")
+      }
       case m: TMessage => {
         b.append(s"pony_send((actor_t*)${context.workingID}, ${id.name.hashCode.abs}, create_args(${args.length}")
         e.append(", NULL")
       }
       case c: TConstructor => {
-        id.scope.currentClass.currentClass.get match {
+        val cur = id.scope.currentClass.currentClass.getOrElse(new AST.Object(context.workingID,List.empty, new AST.Is(List.empty), new AST.TypeBody(Map.empty), false)(scope.filename))
+        cur match {
           case a: AST.Actor => {
-            b.append(s"(pony_clazz*)pony_send(pony_create(${id.scope.currentClass.name}_dispatch, NULL), ${id.name.hashCode.abs}, create_args(${args.length}")
+            b.append(s"(pony_clazz*)pony_send(pony_create(${cur.typeName}_dispatch, NULL), ${id.name.hashCode.abs}, create_args(${args.length}")
             e.append(s", NULL")
           }
           case o: AST.Object => {
+            b.append(s"${cur.typeName}_${id.name}(create_args(${args.length}")
           }
-            b.append(s"${id.scope.currentClass.name}_${id.name}(create_args(${args.length}")
           case _ => throw new RuntimeException
         }
       }

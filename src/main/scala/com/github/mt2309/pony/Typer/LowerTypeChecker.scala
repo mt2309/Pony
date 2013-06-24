@@ -490,20 +490,12 @@ final class LowerTypeChecker(val topTypes: Set[PreTypedModule]) {
   }
 
   private def checkContents(c: MethodContent)(implicit scope: Scope): (TMethodContent, Scope) = {
-    val formalScope = checkFormalParams(c.combinedArgs.formalArgs, c.pos)
+    val formalScope = checkFormalParams(c.combinedArgs.formalArgs)(scope, c.combinedArgs.pos)
     val param: TParams = checkParams(c.combinedArgs.args)(formalScope)
     val sc = if (param.isEmpty) formalScope else param.last.scope
     val comb = new TCombinedArgs(c.combinedArgs.formalArgs, param)(sc)
 
     new TMethodContent(checkMode(c.mode)(sc), c.id, comb)(sc) -> sc
-  }
-
-  private def checkFormalParams(p: FormalParams, pos: Position)(implicit scope: Scope): Scope = {
-    var sc = scope
-    for (typeId <- p) {
-      sc = sc.updateScope(typeId)(pos)
-    }
-    sc
   }
 
   private def checkMode(mode: Mode)(implicit scope: Scope): TMode = mode match {
